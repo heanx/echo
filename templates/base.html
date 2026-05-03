@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Echo{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: "#6366F1",
+            play: "#22C55E",
+            ink: "#121212",
+            panel: "#181818",
+          },
+          fontFamily: {
+            sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+          },
+          boxShadow: {
+            soft: "0 18px 60px rgba(0, 0, 0, 0.28)",
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    input[type="range"] { accent-color: #22C55E; }
+    .echo-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+    .echo-scrollbar::-webkit-scrollbar-thumb { background: rgba(113, 113, 122, 0.38); border-radius: 999px; }
+    .echo-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .cover-summer { background-image: linear-gradient(135deg, #fca5a5, #818cf8 54%, #0f172a); }
+    .cover-city { background-image: linear-gradient(135deg, #bae6fd, #64748b 54%, #111827); }
+    .cover-eclipse { background-image: linear-gradient(135deg, #312e81, #c084fc 52%, #020617); }
+    .cover-sea { background-image: linear-gradient(135deg, #dbeafe, #38bdf8 52%, #164e63); }
+    .cover-signal { background-image: linear-gradient(135deg, #86efac, #0f766e 50%, #052e16); }
+    .cover-sunset { background-image: linear-gradient(135deg, #fed7aa, #f97316 46%, #581c87); }
+    .waveform {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.72) 0 2px, transparent 2px 8px),
+        linear-gradient(90deg, transparent, rgba(255,255,255,.26), transparent);
+      mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+    }
+    #left-sidebar.is-collapsed .sidebar-expanded,
+    #left-sidebar.is-collapsed .sidebar-meta,
+    #left-sidebar.is-collapsed .sidebar-time {
+      display: none;
+    }
+    #left-sidebar.is-collapsed .sidebar-top,
+    #left-sidebar.is-collapsed .library-row,
+    #left-sidebar.is-collapsed .sidebar-footer {
+      justify-content: center;
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    #left-sidebar.is-collapsed .sidebar-body {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    #left-sidebar.is-collapsed .history-track {
+      display: flex;
+      grid-template-columns: none;
+      justify-content: center;
+      padding: 4px;
+    }
+    #left-sidebar.is-collapsed #toggle-sidebar svg {
+      transform: rotate(180deg);
+    }
+    #content-grid.context-closed {
+      column-gap: 0;
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden bg-zinc-100 text-zinc-900 antialiased dark:bg-black dark:text-white">
+  <div id="echo-shell" class="grid h-screen grid-rows-[76px_1fr_112px] gap-2 bg-zinc-100 p-2 dark:bg-black">
+    <header id="top-bar" class="flex min-w-0 items-center gap-4 rounded-lg bg-white px-4 dark:bg-[#121212]">
+      <a href="{% url 'home' %}" class="flex shrink-0 items-center gap-4" hx-get="{% url 'home' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" aria-label="Echo 首页">
+        <span class="grid h-[60px] w-[60px] place-items-center rounded-lg bg-brand/15 text-brand">
+          <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/>
+          </svg>
+        </span>
+        <span class="hidden text-4xl font-black tracking-normal sm:block">Echo</span>
+      </a>
+      <button type="button" class="ml-2 grid h-14 w-14 shrink-0 place-items-center rounded-full bg-zinc-200 text-zinc-800 transition hover:bg-zinc-300 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700" aria-label="回到首页" hx-get="{% url 'home' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
+        <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z"/></svg>
+      </button>
+      <form class="mx-auto flex h-12 w-full max-w-xl items-center gap-3 rounded-full bg-zinc-200/80 px-5 dark:bg-zinc-900" hx-get="{% url 'home' %}" hx-trigger="keyup changed delay:500ms from:input" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML">
+        <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input name="q" class="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑或用户..." autocomplete="off">
+      </form>
+      <button id="theme-toggle" type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="切换深浅色">
+        <svg viewBox="0 0 24 24" class="h-5 w-5 dark:hidden" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/><circle cx="12" cy="12" r="4"/></svg>
+        <svg viewBox="0 0 24 24" class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></svg>
+      </button>
+      <button type="button" class="relative hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800 sm:grid" aria-label="消息">
+        <span class="absolute right-2 top-2 h-3 w-3 rounded-full bg-rose-500"></span>
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button class="hidden shrink-0 items-center gap-3 rounded-full pr-2 sm:flex" type="button">
+        <span class="cover-summer h-11 w-11 rounded-full border border-zinc-200 dark:border-zinc-700"></span>
+        <span class="font-medium">Acacia</span>
+        <svg viewBox="0 0 24 24" class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </header>
+    <div id="content-grid" class="grid min-h-0 grid-cols-[var(--left-width)_minmax(0,1fr)_var(--right-width)] gap-2 overflow-hidden rounded-2xl bg-transparent transition-all duration-300"
+         style="--left-width: 300px; --right-width: 300px;">
+      <aside id="left-sidebar" class="hidden min-h-0 overflow-hidden rounded-lg bg-white/95 transition-all duration-300 dark:bg-[#121212] lg:flex lg:flex-col">
+        <div class="sidebar-body flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 py-6 echo-scrollbar">
+          <section>
+            <div class="library-row mb-4 flex items-center gap-3">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-100 dark:bg-zinc-900">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V6a2 2 0 0 1 2-2h12v15"/><path d="M4 19a2 2 0 0 0 2 2h12"/><path d="M9 9h6M9 13h4"/></svg>
+              </span>
+              <h2 class="sidebar-expanded font-bold">你的音乐库</h2>
+              <a href="#upload" class="sidebar-expanded ml-auto grid h-9 w-9 place-items-center rounded-full text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="上传音乐">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              </a>
+              <button data-toggle-sidebar type="button" class="grid h-9 w-9 place-items-center rounded-full text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="收起侧栏">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+            </div>
+            <div class="sidebar-expanded flex gap-3">
+              <button class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand">已上传</button>
+              <button class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand">已点赞</button>
+            </div>
+          </section>
+
+          <section class="min-h-0">
+            <h2 class="sidebar-expanded mb-4 text-sm font-bold text-zinc-600 dark:text-zinc-300">最近播放</h2>
+            <div class="space-y-3">
+              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="夏夜晚风" data-echo-track data-src="" data-title="夏夜晚风" data-artist="Eric 周兴" data-cover="summer">
+                <span class="cover-summer h-12 w-12 rounded-lg"></span>
+                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">夏夜晚风</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by Eric 周兴</span></span>
+                <span class="sidebar-time text-xs text-zinc-500">2小时前</span>
+              </button>
+              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="城市旅人" data-echo-track data-src="" data-title="城市旅人" data-artist="柴郡 Cheshire" data-cover="city">
+                <span class="cover-city h-12 w-12 rounded-lg"></span>
+                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">城市旅人</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by 柴郡 Cheshire</span></span>
+                <span class="sidebar-time text-xs text-zinc-500">5小时前</span>
+              </button>
+              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="Eclipse" data-echo-track data-src="" data-title="Eclipse" data-artist="Luna Chant" data-cover="eclipse">
+                <span class="cover-eclipse h-12 w-12 rounded-lg"></span>
+                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">Eclipse</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by Luna Chant</span></span>
+                <span class="sidebar-time text-xs text-zinc-500">1天前</span>
+              </button>
+              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="回声与海" data-echo-track data-src="" data-title="回声与海" data-artist="海边的卡夫卡" data-cover="sea">
+                <span class="cover-sea h-12 w-12 rounded-lg"></span>
+                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">回声与海</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by 海边的卡夫卡</span></span>
+                <span class="sidebar-time text-xs text-zinc-500">1天前</span>
+              </button>
+              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="山间信号" data-echo-track data-src="" data-title="山间信号" data-artist="低空飞行" data-cover="signal">
+                <span class="cover-signal h-12 w-12 rounded-lg"></span>
+                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">山间信号</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by 低空飞行</span></span>
+                <span class="sidebar-time text-xs text-zinc-500">2天前</span>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div class="sidebar-footer p-5">
+          <button data-toggle-sidebar class="flex w-full items-center justify-center gap-3 rounded-lg px-3 py-3 text-sm text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white" type="button" aria-label="收起侧栏">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            <span class="sidebar-expanded">收起侧栏</span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-transparent">
+        {% block main %}
+        {% endblock %}
+      </section>
+
+      <aside id="context-panel" class="hidden min-h-0 overflow-hidden rounded-lg bg-white/95 transition-all duration-300 dark:bg-[#121212] xl:flex xl:flex-col">
+        <div class="flex h-[76px] shrink-0 items-center justify-between px-5">
+          <h2 class="font-bold">正在播放</h2>
+          <button id="close-context" type="button" class="grid h-9 w-9 place-items-center rounded-full transition hover:bg-zinc-200 dark:hover:bg-zinc-800" aria-label="关闭右侧栏">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5 echo-scrollbar">
+          <div class="cover-summer relative aspect-[4/3] overflow-hidden rounded-lg">
+            <div class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white">1/6</div>
+            <div class="absolute bottom-4 left-4 right-4 h-1 rounded-full bg-white/30">
+              <div class="h-full w-1/4 rounded-full bg-white"></div>
+            </div>
+          </div>
+          <h3 class="mt-5 text-2xl font-black">夏夜晚风</h3>
+          <p class="mt-1 text-zinc-500 dark:text-zinc-400">by Eric 周兴</p>
+
+          <div class="mt-5 rounded-lg bg-white p-4 shadow-sm dark:bg-zinc-900">
+            <div class="flex items-center gap-3">
+              <span class="h-12 w-12 rounded-full bg-zinc-900 dark:bg-zinc-700"></span>
+              <div class="min-w-0 flex-1">
+                <p class="font-bold">Eric 周兴</p>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">12.4K 关注者</p>
+              </div>
+              <button class="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white">关注</button>
+            </div>
+            <p class="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">独立音乐人，擅长用温柔的旋律记录生活中的细微情感。</p>
+          </div>
+
+          <div class="mt-5 space-y-2 text-sm">
+            <h4 class="mb-3 text-base font-bold">歌曲信息</h4>
+            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">专辑</span><span>《晚风集》</span></div>
+            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">发行日期</span><span>2023-07-21</span></div>
+            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">风格</span><span>Indie / Pop</span></div>
+            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">时长</span><span>03:42</span></div>
+          </div>
+
+          <div class="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+            <h4 class="mb-4 font-bold">下一首播放</h4>
+            <button class="grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg text-left" data-echo-track data-title="城市旅人" data-artist="柴郡 Cheshire" data-cover="city">
+              <span class="cover-city h-12 w-12 rounded-lg"></span>
+              <span class="min-w-0"><span class="block truncate font-semibold">城市旅人</span><span class="block truncate text-sm text-zinc-500">by 柴郡 Cheshire</span></span>
+              <span class="text-sm text-zinc-500">04:01</span>
+            </button>
+          </div>
+
+          <div class="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+            <h4 class="mb-4 font-bold">同步歌词</h4>
+            <div class="space-y-4 text-sm leading-7 text-zinc-500 dark:text-zinc-400">
+              <p>晚风经过旧楼顶</p>
+              <p class="text-lg font-bold text-white">把城市的灯慢慢吹醒</p>
+              <p>你说别急着回到人群</p>
+              <p>让耳机里的鼓点继续旅行</p>
+              <p>每一次回声落在海面</p>
+              <p>都像夏天写给夜晚的信</p>
+              <p>我们沿着月光向前</p>
+              <p>把没说出口的话唱轻</p>
+            </div>
+          </div>
+
+          <div class="mt-6 border-t border-zinc-200 pb-8 pt-5 dark:border-zinc-800">
+            <h4 class="mb-4 font-bold">热门评论</h4>
+            <div class="space-y-3">
+              <article class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-900">
+                <p class="text-sm font-semibold">Acacia</p>
+                <p class="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">副歌一进来的瞬间，真的像傍晚从桥上吹过来的风。</p>
+              </article>
+              <article class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-900">
+                <p class="text-sm font-semibold">柴郡 Cheshire</p>
+                <p class="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">这首适合写代码到最后十分钟的时候听，有一种轻轻收尾的感觉。</p>
+              </article>
+              <article class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-900">
+                <p class="text-sm font-semibold">Luna Chant</p>
+                <p class="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">封面色和编曲很搭，温柔但不黏。</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer id="playback-bar" class="grid grid-cols-[minmax(180px,1fr)_minmax(260px,1.5fr)_minmax(180px,1fr)] items-center gap-4 rounded-lg bg-white px-4 shadow-soft dark:bg-black">
+      <div class="flex min-w-0 items-center gap-4">
+        <span id="player-cover" class="cover-summer h-[72px] w-[72px] shrink-0 rounded-lg"></span>
+        <div class="min-w-0">
+          <p id="player-title" class="truncate text-lg font-bold">夏夜晚风</p>
+          <p id="player-artist" class="truncate text-zinc-500 dark:text-zinc-400">Eric 周兴</p>
+        </div>
+        <button class="hidden text-play sm:block" type="button" aria-label="喜欢">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M12 21s-7.5-4.35-9.5-8.5C.92 9.22 2.7 5.5 6.25 5.5c2.05 0 3.24 1.08 3.95 2.05.71-.97 1.9-2.05 3.95-2.05 3.55 0 5.33 3.72 3.75 7C19.5 16.65 12 21 12 21Z"/></svg>
+        </button>
+      </div>
+
+      <div class="flex min-w-0 flex-col items-center gap-3">
+        <div class="flex items-center gap-5">
+          <button class="hidden text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white sm:block" type="button" aria-label="随机播放">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20l17-17M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+          </button>
+          <button class="text-zinc-700 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white" type="button" aria-label="上一首">
+            <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M7 6h2v12H7V6Zm3 6 9-6v12l-9-6Z"/></svg>
+          </button>
+          <button id="player-toggle" class="grid h-14 w-14 place-items-center rounded-full bg-zinc-950 text-white transition hover:scale-105 dark:bg-white dark:text-zinc-950" type="button" aria-label="播放或暂停">
+            <svg id="player-play-icon" viewBox="0 0 24 24" class="hidden h-7 w-7" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
+            <svg id="player-pause-icon" viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>
+          </button>
+          <button class="text-zinc-700 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white" type="button" aria-label="下一首">
+            <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M15 6h2v12h-2V6ZM5 18V6l9 6-9 6Z"/></svg>
+          </button>
+          <button class="hidden text-play sm:block" type="button" aria-label="循环播放">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </button>
+        </div>
+        <div class="grid w-full grid-cols-[44px_1fr_44px] items-center gap-3 text-xs text-zinc-500">
+          <span id="player-current">01:28</span>
+          <input id="player-progress" type="range" min="0" max="222" value="88" class="w-full">
+          <span id="player-duration" class="text-right">03:42</span>
+        </div>
+      </div>
+
+      <div class="hidden min-w-0 items-center justify-end gap-4 md:flex">
+        <button type="button" class="text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white" aria-label="音量">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+        <input id="player-volume" type="range" min="0" max="1" step="0.01" value="0.72" class="w-32">
+        <button type="button" class="grid h-12 w-12 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="播放队列">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </button>
+        <button id="open-context" type="button" class="grid h-12 w-12 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="打开右侧栏">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+        </button>
+      </div>
+      <audio id="echo-audio" preload="metadata"></audio>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const shell = document.getElementById("content-grid");
+      const leftSidebar = document.getElementById("left-sidebar");
+      const contextPanel = document.getElementById("context-panel");
+      const themeToggle = document.getElementById("theme-toggle");
+      const sidebarToggles = document.querySelectorAll("[data-toggle-sidebar]");
+      const closeContext = document.getElementById("close-context");
+      const openContext = document.getElementById("open-context");
+      const audio = document.getElementById("echo-audio");
+      const volume = document.getElementById("player-volume");
+      const progress = document.getElementById("player-progress");
+      const title = document.getElementById("player-title");
+      const artist = document.getElementById("player-artist");
+      const cover = document.getElementById("player-cover");
+      const toggle = document.getElementById("player-toggle");
+      const playIcon = document.getElementById("player-play-icon");
+      const pauseIcon = document.getElementById("player-pause-icon");
+
+      const coverClasses = ["cover-summer", "cover-city", "cover-eclipse", "cover-sea", "cover-signal", "cover-sunset"];
+      const setCover = function (name) {
+        coverClasses.forEach(function (className) { cover.classList.remove(className); });
+        cover.classList.add("cover-" + (name || "summer"));
+      };
+
+      const applyTheme = function (theme) {
+        root.classList.toggle("dark", theme !== "light");
+        localStorage.setItem("echo_theme", theme !== "light" ? "dark" : "light");
+      };
+      const applySidebar = function (collapsed) {
+        shell.style.setProperty("--left-width", collapsed ? "76px" : "300px");
+        leftSidebar.classList.toggle("is-collapsed", collapsed);
+        sidebarToggles.forEach(function (button) {
+          button.setAttribute("aria-label", collapsed ? "展开侧栏" : "收起侧栏");
+          button.setAttribute("aria-pressed", collapsed ? "true" : "false");
+        });
+        localStorage.setItem("echo_sidebar_collapsed", collapsed ? "true" : "false");
+      };
+      const applyContext = function (open) {
+        shell.style.setProperty("--right-width", open ? "300px" : "0px");
+        shell.classList.toggle("context-closed", !open);
+        contextPanel.style.display = open ? "" : "none";
+        contextPanel.classList.toggle("xl:flex", open);
+        contextPanel.classList.toggle("xl:hidden", !open);
+        openContext.setAttribute("aria-pressed", open ? "true" : "false");
+        openContext.classList.toggle("text-brand", open);
+        localStorage.setItem("echo_context_panel_open", open ? "true" : "false");
+      };
+      const setPlaying = function (playing) {
+        playIcon.classList.toggle("hidden", playing);
+        pauseIcon.classList.toggle("hidden", !playing);
+      };
+
+      applyTheme(localStorage.getItem("echo_theme") || "dark");
+      applySidebar(localStorage.getItem("echo_sidebar_collapsed") === "true");
+      applyContext(localStorage.getItem("echo_context_panel_open") !== "false");
+      audio.volume = Number(localStorage.getItem("echo_player_volume") || "0.72");
+      volume.value = audio.volume;
+
+      themeToggle.addEventListener("click", function () {
+        applyTheme(root.classList.contains("dark") ? "light" : "dark");
+      });
+      sidebarToggles.forEach(function (button) {
+        button.addEventListener("click", function () {
+          applySidebar(localStorage.getItem("echo_sidebar_collapsed") !== "true");
+        });
+      });
+      closeContext.addEventListener("click", function () { applyContext(false); });
+      openContext.addEventListener("click", function () {
+        applyContext(localStorage.getItem("echo_context_panel_open") === "false");
+      });
+      volume.addEventListener("input", function () {
+        audio.volume = Number(volume.value);
+        localStorage.setItem("echo_player_volume", volume.value);
+      });
+      toggle.addEventListener("click", function () {
+        if (audio.src) {
+          audio.paused ? audio.play() : audio.pause();
+        }
+        setPlaying(audio.src ? !audio.paused : true);
+      });
+      progress.addEventListener("input", function () {
+        if (audio.duration) audio.currentTime = Number(progress.value);
+      });
+      audio.addEventListener("timeupdate", function () {
+        if (!Number.isNaN(audio.duration)) {
+          progress.max = Math.floor(audio.duration);
+          progress.value = Math.floor(audio.currentTime);
+        }
+      });
+      audio.addEventListener("play", function () { setPlaying(true); });
+      audio.addEventListener("pause", function () { setPlaying(false); });
+
+      window.dispatchCustomEvent = function (name, detail) {
+        window.dispatchEvent(new CustomEvent(name, { detail: detail }));
+      };
+
+      window.EchoPlayer = {
+        play: function (track) {
+          title.textContent = track.title || "未命名音频";
+          artist.textContent = track.artist || "Echo 用户";
+          setCover(track.cover || "summer");
+          if (track.src) {
+            audio.src = track.src;
+            audio.play();
+          }
+          setPlaying(true);
+        },
+      };
+
+      window.addEventListener("echo:play", function (event) {
+        window.EchoPlayer.play(event.detail || {});
+      });
+
+      document.body.addEventListener("click", function (event) {
+        const trigger = event.target.closest("[data-echo-track]");
+        if (!trigger) return;
+        window.dispatchCustomEvent("echo:play", {
+          src: trigger.dataset.src,
+          id: trigger.dataset.id,
+          title: trigger.dataset.title,
+          artist: trigger.dataset.artist,
+          cover: trigger.dataset.cover,
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
