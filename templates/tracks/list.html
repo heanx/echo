@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Echo{% endblock %}
+
+{% block main %}
+<section>
+  <div class="mb-5 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-black">{{ page_title }}</h1>
+      <p class="mt-1 text-sm text-zinc-500">浏览 Echo 社区中的音频作品。</p>
+    </div>
+    <a href="{% url 'tracks:upload' %}" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">上传音乐</a>
+  </div>
+
+  <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+    {% for track in tracks %}
+      {% include "components/track_row.html" with track=track %}
+    {% empty %}
+      <div class="p-6 text-sm text-zinc-500">还没有音乐。先上传一首，或运行 python manage.py seed_demo。</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

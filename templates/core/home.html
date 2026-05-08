@@ -1,153 +1,85 @@
 {% extends "base.html" %}
 
 {% block main %}
-<main id="main-content" class="min-h-0 flex-1 overflow-y-auto rounded-lg bg-white p-4 sm:p-6 dark:bg-[#121212] echo-scrollbar">
-  <section class="overflow-hidden rounded-lg bg-zinc-100 shadow-sm dark:bg-zinc-950">
-    <div class="relative min-h-[250px] px-6 py-8 sm:px-8">
-      <div class="absolute inset-0 bg-[linear-gradient(115deg,rgba(99,102,241,.52),rgba(14,165,233,.18)_42%,rgba(34,197,94,.2)),linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.72))]"></div>
-      <div class="cover-sunset absolute inset-0 opacity-45 mix-blend-overlay"></div>
-      <div class="relative flex h-full max-w-2xl flex-col justify-center">
-        <p class="text-lg text-white/80">晚上好，Acacia</p>
-        <h1 class="mt-4 text-4xl font-black leading-tight tracking-normal text-white sm:text-5xl">发现属于你的声音</h1>
-        <p class="mt-5 max-w-xl leading-7 text-white/80">在 Echo，聆听、分享和评论你喜爱的音乐。中部内容可局部刷新，底部播放栏会持续保留。</p>
-        <div class="mt-7 flex flex-wrap gap-3">
-          <button class="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 font-bold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500" data-echo-track data-title="夏夜晚风" data-artist="Eric 周兴" data-cover="summer">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
-            随便播放
-          </button>
-          <a href="#upload" class="inline-flex items-center gap-2 rounded-lg border border-white/45 px-6 py-3 font-bold text-white transition hover:bg-white/10">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M5 21h14"/></svg>
-            上传音乐
-          </a>
-        </div>
+<section class="overflow-hidden rounded-lg bg-zinc-100 shadow-sm dark:bg-zinc-950">
+  <div class="relative min-h-[250px] px-6 py-8 sm:px-8">
+    <div class="absolute inset-0 bg-[linear-gradient(115deg,rgba(99,102,241,.52),rgba(14,165,233,.18)_42%,rgba(34,197,94,.2)),linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.72))]"></div>
+    <div class="{% if hero_track and not hero_track.cover_url %}cover-{{ hero_track.cover_theme|default:'sunset' }}{% elif not hero_track %}cover-sunset{% endif %} absolute inset-0 bg-cover bg-center opacity-45 mix-blend-overlay"
+         {% if hero_track and hero_track.cover_url %}style="background-image: url('{{ hero_track.cover_url }}');"{% endif %}></div>
+    <div class="relative flex h-full max-w-2xl flex-col justify-center">
+      <p class="text-lg text-white/80">欢迎回来，{{ display_name }}</p>
+      <h1 class="mt-4 text-4xl font-black leading-tight text-white sm:text-5xl">发现属于你的声音</h1>
+      <p class="mt-5 max-w-xl leading-7 text-white/80">在 Echo，聆听、分享和评论你喜爱的音乐。中部内容可局部刷新，底部播放栏会持续保留。</p>
+      <div class="mt-7 flex flex-wrap gap-3">
+        <button type="button"
+                class="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 font-bold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-zinc-600 disabled:text-zinc-300 disabled:shadow-none"
+                {% if hero_track %}
+                  data-echo-track
+                  data-src="{{ hero_track.audio_url|default:'' }}"
+                  data-id="{{ hero_track.id }}"
+                  data-title="{{ hero_track.title|escape }}"
+                  data-artist="{{ hero_track.artist|default:'Echo 用户'|escape }}"
+                  data-cover="{{ hero_track.cover_theme|default:'summer' }}"
+                  data-cover-url="{{ hero_track.cover_url }}"
+                {% else %}
+                  disabled
+                  aria-disabled="true"
+                {% endif %}>
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
+          随便播放
+        </button>
+        <a href="{% url 'tracks:upload' %}" class="inline-flex items-center gap-2 rounded-lg border border-white/45 px-6 py-3 font-bold text-white transition hover:bg-white/10">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M5 21h14"/></svg>
+          上传音乐
+        </a>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section class="mt-6">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-black">为你推荐</h2>
-      <a href="#recommend" class="text-sm font-semibold text-brand">查看全部</a>
-    </div>
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-      <article class="group overflow-hidden rounded-lg bg-zinc-100 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900">
-        <div class="cover-city relative aspect-[4/3]">
-          <button class="absolute bottom-4 right-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-zinc-950 opacity-95 shadow-lg transition group-hover:scale-105" data-echo-track data-title="Lo-Fi Beats" data-artist="Echo Picks" data-cover="city" aria-label="播放 Lo-Fi Beats">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
-          </button>
-        </div>
-        <div class="p-4">
-          <h3 class="font-bold">Lo-Fi Beats</h3>
-          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">放松 / 学习 / 工作</p>
-        </div>
-      </article>
-      <article class="group overflow-hidden rounded-lg bg-zinc-100 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900">
-        <div class="cover-sunset relative aspect-[4/3]">
-          <button class="absolute bottom-4 right-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-zinc-950 opacity-95 shadow-lg transition group-hover:scale-105" data-echo-track data-title="独立民谣" data-artist="Warm Stories" data-cover="sunset" aria-label="播放独立民谣">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
-          </button>
-        </div>
-        <div class="p-4">
-          <h3 class="font-bold">独立民谣</h3>
-          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">温暖的故事与旋律</p>
-        </div>
-      </article>
-      <article class="group overflow-hidden rounded-lg bg-zinc-100 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900">
-        <div class="cover-eclipse relative aspect-[4/3]">
-          <button class="absolute bottom-4 right-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-zinc-950 opacity-95 shadow-lg transition group-hover:scale-105" data-echo-track data-title="夜晚氛围" data-artist="Luna Chant" data-cover="eclipse" aria-label="播放夜晚氛围">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
-          </button>
-        </div>
-        <div class="p-4">
-          <h3 class="font-bold">夜晚氛围</h3>
-          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">沉浸在深夜时分</p>
-        </div>
-      </article>
-      <article class="group overflow-hidden rounded-lg bg-zinc-100 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900">
-        <div class="cover-signal relative aspect-[4/3]">
-          <button class="absolute bottom-4 right-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-zinc-950 opacity-95 shadow-lg transition group-hover:scale-105" data-echo-track data-title="电子脉冲" data-artist="Signal Lab" data-cover="signal" aria-label="播放电子脉冲">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
-          </button>
-        </div>
-        <div class="p-4">
-          <h3 class="font-bold">电子脉冲</h3>
-          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">律动与合成的能量</p>
-        </div>
-      </article>
-    </div>
-  </section>
+<section class="mt-6">
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="text-xl font-black">为你推荐</h2>
+    <a href="{% url 'tracks:list' %}" class="text-sm font-semibold text-brand">查看全部</a>
+  </div>
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+    {% for track in recommended_tracks %}
+      {% include "components/track_card.html" with track=track %}
+    {% empty %}
+      <div class="rounded-lg bg-zinc-100 p-6 text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400 sm:col-span-2 2xl:col-span-4">
+        还没有推荐音乐。运行 seed_demo 或上传第一首作品后，这里会显示内容。
+      </div>
+    {% endfor %}
+  </div>
+</section>
 
-  <section class="mt-7">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-black">最新动态</h2>
-      <a href="#latest" class="text-sm font-semibold text-brand">查看全部</a>
-    </div>
-    <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
-      <button class="grid w-full grid-cols-[48px_minmax(120px,1fr)_minmax(110px,260px)_54px_74px_58px_58px_36px] items-center gap-4 px-4 py-3 text-left transition hover:bg-zinc-200/70 dark:hover:bg-zinc-900" data-echo-track data-title="秋日序曲" data-artist="林间漫步" data-cover="summer">
-        <span class="cover-summer grid h-12 w-12 place-items-center rounded-lg text-white"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg></span>
-        <span class="min-w-0"><span class="block truncate font-bold">秋日序曲</span><span class="block truncate text-sm text-zinc-500">by 林间漫步</span></span>
-        <span class="waveform hidden h-8 opacity-70 md:block"></span>
-        <span class="text-sm text-zinc-500">03:42</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>1.2K</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>32</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>128</span>
-        <span class="text-zinc-500">...</span>
-      </button>
-      <button class="grid w-full grid-cols-[48px_minmax(120px,1fr)_minmax(110px,260px)_54px_74px_58px_58px_36px] items-center gap-4 px-4 py-3 text-left transition hover:bg-zinc-200/70 dark:hover:bg-zinc-900" data-echo-track data-title="雾中的你" data-artist="softy" data-cover="city">
-        <span class="cover-city grid h-12 w-12 place-items-center rounded-lg text-white"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg></span>
-        <span class="min-w-0"><span class="block truncate font-bold">雾中的你</span><span class="block truncate text-sm text-zinc-500">by softy</span></span>
-        <span class="waveform hidden h-8 opacity-60 md:block"></span>
-        <span class="text-sm text-zinc-500">04:15</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>836</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>18</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>97</span>
-        <span class="text-zinc-500">...</span>
-      </button>
-      <button class="grid w-full grid-cols-[48px_minmax(120px,1fr)_minmax(110px,260px)_54px_74px_58px_58px_36px] items-center gap-4 px-4 py-3 text-left transition hover:bg-zinc-200/70 dark:hover:bg-zinc-900" data-echo-track data-title="小船" data-artist="海底时光机" data-cover="sea">
-        <span class="cover-sea grid h-12 w-12 place-items-center rounded-lg text-white"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg></span>
-        <span class="min-w-0"><span class="block truncate font-bold">小船</span><span class="block truncate text-sm text-zinc-500">by 海底时光机</span></span>
-        <span class="waveform hidden h-8 opacity-60 md:block"></span>
-        <span class="text-sm text-zinc-500">02:58</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>642</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>12</span>
-        <span class="hidden items-center gap-1 text-sm text-zinc-500 sm:flex"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>64</span>
-        <span class="text-zinc-500">...</span>
-      </button>
-    </div>
-  </section>
+<section class="mt-7">
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="text-xl font-black">最新动态</h2>
+    <a href="{% url 'tracks:latest' %}" class="text-sm font-semibold text-brand">查看全部</a>
+  </div>
+  <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+    {% for track in latest_tracks %}
+      {% include "components/track_row.html" with track=track %}
+    {% empty %}
+      <div class="px-4 py-6 text-sm text-zinc-500 dark:text-zinc-400">暂时还没有社区动态。新上传、评论和点赞会出现在这里。</div>
+    {% endfor %}
+  </div>
+</section>
 
-  <section class="mt-7 pb-8">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-black">热门专辑与单曲</h2>
-      <a href="#albums" class="text-sm font-semibold text-brand">查看全部</a>
-    </div>
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-5">
-      <article class="rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-echo-track data-title="远岸电台" data-artist="Echo Radio" data-cover="sea">
-        <div class="cover-sea aspect-square rounded-lg"></div>
-        <h3 class="mt-3 truncate font-bold">远岸电台</h3>
-        <p class="mt-1 line-clamp-2 text-sm text-zinc-500">海风、慢速鼓点和漂浮的人声采样。</p>
-      </article>
-      <article class="rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-echo-track data-title="霓虹散步" data-artist="Night Runner" data-cover="eclipse">
-        <div class="cover-eclipse aspect-square rounded-lg"></div>
-        <h3 class="mt-3 truncate font-bold">霓虹散步</h3>
-        <p class="mt-1 line-clamp-2 text-sm text-zinc-500">适合夜间通勤的轻电子合集。</p>
-      </article>
-      <article class="rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-echo-track data-title="晨间信号" data-artist="低空飞行" data-cover="signal">
-        <div class="cover-signal aspect-square rounded-lg"></div>
-        <h3 class="mt-3 truncate font-bold">晨间信号</h3>
-        <p class="mt-1 line-clamp-2 text-sm text-zinc-500">清醒、轻快、带一点绿色噪声。</p>
-      </article>
-      <article class="rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-echo-track data-title="落日留声" data-artist="VHS Boy" data-cover="sunset">
-        <div class="cover-sunset aspect-square rounded-lg"></div>
-        <h3 class="mt-3 truncate font-bold">落日留声</h3>
-        <p class="mt-1 line-clamp-2 text-sm text-zinc-500">复古合成器与暖色吉他。</p>
-      </article>
-      <article class="rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-echo-track data-title="城市旅人" data-artist="柴郡 Cheshire" data-cover="city">
-        <div class="cover-city aspect-square rounded-lg"></div>
-        <h3 class="mt-3 truncate font-bold">城市旅人</h3>
-        <p class="mt-1 line-clamp-2 text-sm text-zinc-500">地铁、雨声和凌晨的路灯。</p>
-      </article>
-    </div>
-  </section>
-</main>
+<section class="mt-7 pb-8">
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="text-xl font-black">热门专辑与单曲</h2>
+    <a href="{% url 'albums:list' %}" class="text-sm font-semibold text-brand">查看全部</a>
+  </div>
+  <div class="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-5">
+    {% for album in hot_albums %}
+      {% include "components/album_card.html" with album=album %}
+    {% empty %}
+      <div class="rounded-lg bg-zinc-100 p-6 text-sm text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400 lg:col-span-3 2xl:col-span-5">
+        还没有热门专辑。运行 seed_demo 后这里会显示测试合集。
+      </div>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

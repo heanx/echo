@@ -1,0 +1,10 @@
+from django.urls import path
+
+from . import views
+
+
+app_name = "comments"
+
+urlpatterns = [
+    path("<int:track_id>/create/", views.create_comment, name="create"),
+]

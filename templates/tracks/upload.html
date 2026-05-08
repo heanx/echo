@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}上传音乐 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-5xl pb-10">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-wide text-brand">Upload</p>
+      <h1 class="mt-2 text-3xl font-black">上传音乐</h1>
+      <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">一次补齐音频、封面和歌词。歌词会在保存后解析成逐行数据，评论页也能立刻按新作品切换。</p>
+    </div>
+    <a href="{% url 'lyrics:upload' %}" class="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold text-zinc-600 transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:text-zinc-300">只上传歌词</a>
+  </div>
+
+  {% if error %}
+    <div class="mt-5 rounded-lg bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    {% csrf_token %}
+
+    <div class="space-y-6">
+      <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="mb-5">
+          <h2 class="text-lg font-black">作品信息</h2>
+          <p class="mt-1 text-sm text-zinc-500">标题是必填项，其余字段可后续在后台继续补充。</p>
+        </div>
+        <div class="space-y-5">
+          <div>
+            <label class="mb-2 block text-sm font-semibold" for="title">标题</label>
+            <input id="title" name="title" value="{{ form_data.title|default:'' }}" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]" required>
+          </div>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label class="mb-2 block text-sm font-semibold" for="artist">作者</label>
+              <input id="artist" name="artist" value="{{ form_data.artist|default:'' }}" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-semibold" for="status">发布状态</label>
+              <select id="status" name="status" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+                <option value="published">直接发布</option>
+                <option value="draft">保存草稿</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="mb-2 block text-sm font-semibold" for="description">简介</label>
+            <textarea id="description" name="description" rows="4" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">{{ form_data.description|default:'' }}</textarea>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="mb-5">
+          <h2 class="text-lg font-black">媒体文件</h2>
+          <p class="mt-1 text-sm text-zinc-500">没有音频文件时，播放器会继续使用 demo 音频路径，便于课程展示。</p>
+        </div>
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-semibold" for="audio_file">音频文件</label>
+            <input id="audio_file" name="audio_file" type="file" accept="audio/*" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+          </div>
+          <div>
+            <label class="mb-2 block text-sm font-semibold" for="duration_ms">时长毫秒</label>
+            <input id="duration_ms" name="duration_ms" type="number" min="0" step="1000" placeholder="例如 222000" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="mb-5">
+          <h2 class="text-lg font-black">歌词</h2>
+          <p class="mt-1 text-sm text-zinc-500">支持 LRC 时间戳，也支持纯文本逐行解析。留空则只创建音乐作品。</p>
+        </div>
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-semibold" for="lyrics_language">语言</label>
+            <input id="lyrics_language" name="lyrics_language" value="zh-Hans" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+          </div>
+          <div>
+            <label class="mb-2 block text-sm font-semibold" for="lyrics_kind">歌词类型</label>
+            <select id="lyrics_kind" name="lyrics_kind" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+              {% for value, label in lyrics_kinds %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="mt-5">
+          <label class="mb-2 block text-sm font-semibold" for="lyrics_file">歌词文件</label>
+          <input id="lyrics_file" name="lyrics_file" type="file" accept=".lrc,.txt" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+        </div>
+        <div class="mt-5">
+          <label class="mb-2 block text-sm font-semibold" for="lyrics_raw_text">歌词文本</label>
+          <textarea id="lyrics_raw_text" name="lyrics_raw_text" rows="8" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]" placeholder="[00:12.00] 我在回声里听见一束光&#10;[00:26.00] 它穿过城市的雾和夜航"></textarea>
+        </div>
+      </section>
+    </div>
+
+    <aside class="space-y-6">
+      <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 class="text-lg font-black">封面</h2>
+        <div class="cover-summer mt-4 aspect-square rounded-lg" id="upload-cover-preview"></div>
+        <div class="mt-5">
+          <label class="mb-2 block text-sm font-semibold" for="cover_theme">封面主题</label>
+          <select id="cover_theme" name="cover_theme" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+            {% for theme in cover_themes %}
+              <option value="{{ theme }}">{{ theme }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mt-5">
+          <label class="mb-2 block text-sm font-semibold" for="cover_image">封面图片</label>
+          <input id="cover_image" name="cover_image" type="file" accept="image/*" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 class="text-lg font-black">保存后</h2>
+        <ul class="mt-3 space-y-2 text-sm text-zinc-500">
+          <li>音乐会进入首页、列表和左侧音乐库。</li>
+          <li>歌词会生成逐行数据，可在歌词页按 track 读取。</li>
+          <li>评论页会按新作品动态访问数据库。</li>
+        </ul>
+        <div class="mt-5 flex flex-col gap-3">
+          <button type="submit" class="rounded-lg bg-brand px-5 py-3 font-bold text-white hover:bg-indigo-500">保存音乐</button>
+          <a href="{% url 'home' %}" class="rounded-lg px-5 py-3 text-center font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900">取消</a>
+        </div>
+      </section>
+    </aside>
+  </form>
+</section>
+
+<script>
+  (function () {
+    const themeSelect = document.getElementById("cover_theme");
+    const preview = document.getElementById("upload-cover-preview");
+    const coverClasses = ["cover-summer", "cover-city", "cover-eclipse", "cover-sea", "cover-ocean", "cover-signal", "cover-sunset", "cover-forest", "cover-night"];
+    if (!themeSelect || !preview) return;
+    themeSelect.addEventListener("change", function () {
+      coverClasses.forEach(function (className) { preview.classList.remove(className); });
+      preview.classList.add("cover-" + themeSelect.value);
+    });
+  })();
+</script>
+{% endblock %}

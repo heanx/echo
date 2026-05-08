@@ -1,0 +1,281 @@
+# Echo 项目交接文档
+
+更新时间：2026-05-09  
+用途：当前对话上下文已接近上限，新对话请先读本文件，再读相关专题文档。
+
+## 当前总体状态
+
+Echo 已经从静态首页发展为 Django + SQLite 的音乐社区原型，包含：
+
+- `tracks`：音频作品、上传、列表、详情。
+- `albums`：专辑/合集。
+- `comments`：评论模型、评论查询、评论提交 partial。
+- `lyrics`：歌词版本、歌词行、歌词上传/解析。
+- `core`：首页、评论主界面、歌词主界面、页面壳数据。
+
+前端是 Spotify 风格三栏应用壳：
+
+- 顶部栏：左侧 Echo Logo，中间 Home + 搜索框，右侧主题、消息、好友、上传、用户菜单。
+- 左侧栏：音乐库，可折叠；创建菜单包含上传音乐、歌单、共享合辑、文件夹、上传歌词。
+- 中部栏：`#main-content`，首页、歌词页、评论页都在这里切换。
+- 右侧栏：当前播放上下文；关闭按钮动态出现，标题 hover 右移让位。
+- 底部栏：常驻播放器；歌词/评论按钮通过 HTMX 切换中部主内容。
+
+## 当前已落地的后端能力
+
+已存在 app：
+
+```text
+tracks/
+albums/
+comments/
+lyrics/
+core/
+```
+
+评论：
+
+- `comments.models.TrackComment`
+- `comments.models.TrackCommentReaction`
+- `comments.queries.get_comment_page_context()`
+- `comments.views.create_comment()`
+- 路由：
+  - `/comments/`
+  - `/comments/<track_id>/create/`
+
+歌词：
+
+- `lyrics.models.TrackLyrics`
+- `lyrics.models.TrackLyricLine`
+- `lyrics.views.upload_lyrics()`
+- 支持 LRC/纯文本上传解析。
+- 路由：
+  - `/lyrics/`
+  - `/lyrics/upload/`
+
+数据库/并发：
+
+- `core/db.py` 和 `core/apps.py` 为 SQLite 开启 WAL、`busy_timeout` 等配置。
+- 详细说明见 `docs/database_integration.md`。
+
+## 当前关键文档
+
+请按优先级阅读：
+
+1. `docs/handoff_frontend_backend.md`
+   - 当前交接总览。
+2. `docs/database_integration.md`
+   - 当前真实数据库模型、关系、查询、接口、SQLite 注意事项。
+3. `docs/backend_comments_lyrics_integration.md`
+   - 评论/歌词后端落地说明。
+4. `docs/phase_2_comments_lyrics.md`
+   - Phase 2 原始数据设计文档。
+5. `docs/frontend_dynamic_resources.md`
+   - 动态封面和响应式布局约定。
+6. `docs/phase_1_frontend_setup.md`
+   - 早期工程底座文档，仅作为背景参考。
+
+## 重要文件
+
+前端壳：
+
+- `templates/base.html`
+  - 风险最高文件。包含顶部栏、左右侧栏、播放器、HTMX 按钮、播放器 JS、顶部栏居中逻辑。
+
+主内容模板：
+
+- `templates/core/home.html`
+- `templates/core/lyrics.html`
+- `templates/core/comments.html`
+
+评论模板：
+
+- `templates/comments/comment_item.html`
+
+歌词模板：
+
+- `templates/lyrics/upload.html`
+
+核心后端：
+
+- `core/views.py`
+  - `home()`、`lyrics()`、`comments()` 已接数据库查询。
+- `core/urls.py`
+  - `/`、`/lyrics/`、`/comments/`。
+- `comments/models.py`
+- `comments/queries.py`
+- `comments/views.py`
+- `comments/urls.py`
+- `lyrics/models.py`
+- `lyrics/views.py`
+- `lyrics/urls.py`
+
+## 前端交互约定
+
+播放器触发元素必须保留：
+
+```html
+data-echo-track
+data-src="{{ track.audio_url|default:'' }}"
+data-id="{{ track.id }}"
+data-title="{{ track.title|escape }}"
+data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
+data-cover="{{ track.cover_theme|default:'summer' }}"
+data-cover-url="{{ track.cover_url }}"
+```
+
+底部歌词/评论按钮：
+
+- `#lyrics-nav`
+- `#comments-nav`
+
+JS 会在播放曲目变化时把它们的 `hx-get` 和 `href` 更新为：
+
+```text
+/lyrics/?track=<track_id>
+/comments/?track=<track_id>
+```
+
+如果当前中部主内容已经是歌词/评论页，播放新歌时会自动刷新当前资源页。
+
+首页导航：
+
+- 顶部 Logo 和 Home 按钮带 `data-home-nav`。
+- JS 函数 `window.EchoHome(event)` 会在返回首页前检查中部表单是否有未保存编辑内容。
+
+布局状态使用 localStorage：
+
+- `echo_theme`
+- `echo_sidebar_collapsed`
+- `echo_context_panel_open`
+- `echo_player_volume`
+- `echo_current_track_id`
+
+## 最近刚改过的前端点
+
+顶部栏：
+
+- Logo 和 `Echo` 字号缩小；`Echo` 文案在 `sm` 以上显示，避免中等宽度过早消失。
+- 顶部栏高度保持桌面一致，不再因为上传按钮/用户名隐藏而改变高度。
+- Home + 搜索框作为一个搜索组。搜索框默认位于 header grid 中间列，宽度不足时自然缩小；`updateTopSearchLayout()` 会用 `--top-search-shift` 将搜索组连续平移到尽量接近顶部栏物理中心的位置，同时不覆盖 Logo/右侧按钮。
+- 搜索组结构：
+  - `.top-search-wrap`
+  - `.top-search-cluster`
+  - `#workspace-home-button`
+  - `.top-search-balance`
+- 顶部 tooltip 为同一水平行弹出：搜索组内 Home 向右弹，右侧按钮向左弹，避免跑到内容区下方或被遮挡。
+- 注意：这个位置刚反复调整过，新对话如继续改，请优先用浏览器实际截图验证，不要只靠代码推断。不要恢复旧的绝对居中硬切 `.is-inline/.is-centered` 方案。
+
+左侧音乐库：
+
+- 标题文案为“音乐库”。
+- 折叠状态点击音乐库 icon 可展开。
+- 展开状态 hover 整个音乐库板块时，折叠按钮出现，音乐库 icon + 标题右移让位。
+- 创建按钮为胶囊形“创建”，打开后变成关闭图标；当动态布局计算出的左栏宽度小于 `280px` 时进入 `.is-compact`，隐藏“创建”两个字，仅保留加号。
+- 创建菜单支持亮/暗模式、icon hover 旋转放大并填充主题蓝。
+- 折叠状态下创建菜单也能向右弹出。
+
+响应式布局：
+
+- 原先 `<1024px` 直接隐藏左侧音乐库、`<1280px` 直接隐藏右侧栏的硬断点已改为 JS 动态计算。
+- `updateShellLayout()` 根据实际视口宽度设置：
+  - `--left-width`
+  - `--right-width`
+  - `layout-has-left/layout-no-left`
+  - `layout-has-context/layout-no-context`
+- 当前策略：
+  - `>= 760px` 保留左侧音乐库。
+  - 手动折叠左侧栏时宽度为 `76px`。
+  - 展开左侧栏宽度约为视口的 `22%`，限制在 `248px ~ 320px`。
+  - 右侧播放上下文栏按空间动态显示，候选宽度约为视口的 `20%`，限制在 `248px ~ 360px`。
+  - 当左栏和右栏都显示后中间内容不足约 `560px` 时，右栏自动隐藏。
+  - 例如 `1000px` 宽：左栏约 `248px`，右栏隐藏，中间约 `752px`。
+
+右侧栏：
+
+- 关闭按钮在左侧，hover 右侧栏时出现。
+- `正在播放` 标题 hover 时右移让位。
+- 关闭按钮 tooltip 从按钮右侧弹出，并提高了层级避免被标题遮挡。
+
+播放器：
+
+- 播放状态色从绿色统一改为主题蓝 `#6366F1`。
+- range `accent-color` 也是主题蓝。
+- 底部播放器高度在非极窄状态保持桌面一致，不再随上传按钮/用户名等顶部状态变化。
+- 进度条和音量条由 `updatePlaybackLayout()` 连续计算宽度：
+  - `--player-progress-width` 根据 `.playback-controls` 实际宽度计算，范围 `128px ~ 520px`。
+  - `--player-volume-width` 根据右侧工具区宽度计算，范围 `56px ~ 128px`。
+  - 宽度变化带 `transition: width 180ms ease`，避免断点生硬跳变。
+- `<=639px` 进入紧凑两行播放器布局：
+  - 第一行：歌曲信息 + 核心播放控制。
+  - 第二行：进度条横跨整条播放器。
+  - 顶部搜索组隐藏 Home 圆钮，把空间让给搜索框。
+- `<=420px` 时隐藏上一首/下一首，优先保留播放/暂停和进度条。
+- 底部播放器按钮已补充同一水平行 tooltip：随机、上一首、播放/暂停、下一首、循环、歌词、评论、音量、播放队列、播放上下文。
+
+主内容：
+
+- `/comments/` 和 `/lyrics/` 是中部主界面，不是右侧栏内容。
+- 歌词背景为主题蓝。
+- 评论页已接数据库，支持筛选、提交、partial 插入。
+
+## 已知风险
+
+- `templates/base.html` 很大，且承载多个交互。修改前先 `git diff -- templates/base.html`。
+- 顶部栏居中逻辑刚经历多轮改动，视觉目标是：宽度足够时 `Home + 搜索框` 尽量接近顶部栏物理中心；宽度受限时搜索框缩小/平移，不能和 Logo/右侧按钮重叠。
+- 顶部和底部 tooltip 依赖 `overflow: visible`，不要为了解决高度问题把 `#top-bar` 或 `#playback-bar` 改回 `overflow: hidden`。
+- 顶部/底部栏高度不应因为“上传按钮隐藏”这类中间宽度状态而改变；中间宽度只调整宽度和可见组件。
+- 不要删除 `#main-content`，它必须只由 `base.html` 提供。
+- 不要把歌词/评论放进右侧栏，它们是中部主界面。
+- 不要随意清理未跟踪目录：当前很多 app/template/doc 文件仍显示为 untracked，是前几轮对话生成内容。
+- PowerShell 查看中文请用 `Get-Content -Encoding UTF8`。
+
+## 推荐验证命令
+
+基础检查：
+
+```powershell
+.\.venv\Scripts\python.exe manage.py check
+```
+
+页面渲染：
+
+```powershell
+.\.venv\Scripts\python.exe manage.py shell -c "from django.test import Client; c=Client(); paths=['/','/lyrics/','/comments/','/tracks/','/tracks/latest/','/tracks/upload/','/albums/','/lyrics/upload/']; [print(path, (r:=c.get(path, HTTP_HOST='127.0.0.1')).status_code, 'main-content' in r.content.decode(errors='ignore')) for path in paths]"
+```
+
+评论相关快速检查：
+
+```powershell
+.\.venv\Scripts\python.exe manage.py shell -c "from comments.models import TrackComment; from lyrics.models import TrackLyrics; print('comments', TrackComment.objects.count()); print('lyrics', TrackLyrics.objects.count())"
+```
+
+启动本地服务：
+
+```powershell
+tools\run_dev_server.bat
+```
+
+访问：
+
+```text
+http://127.0.0.1:8000/
+```
+
+## 新对话建议优先级
+
+1. 先运行验证命令，确认当前工作树能启动。
+2. 打开浏览器检查顶部栏：宽屏、中屏、窄屏下 `Home + 搜索框` 是否尽量居中、连续平移且不重叠。
+3. 检查底部播放器：宽屏、中屏、最窄宽度下进度条/音量条是否平滑变化，紧凑两行布局是否正常。
+4. 检查左侧创建菜单：展开/折叠状态、紧凑宽度只显示加号、亮/暗模式、空间不足定位。
+5. 检查 `/comments/`：
+   - 筛选链接是否正常。
+   - HTMX 发布评论是否插入 `#comments-list`。
+6. 检查 `/lyrics/` 和 `/lyrics/upload/`：
+   - 是否读取数据库歌词。
+   - 上传 LRC/纯文本后是否生成行。
+7. 后续功能：
+   - 评论点赞接 `TrackCommentReaction`。
+   - 评论回复接 `parent`。
+   - 歌词页接播放器 `timeupdate` 高亮当前行。
+   - 播放点击时用后端接口记录 `Track.plays`。

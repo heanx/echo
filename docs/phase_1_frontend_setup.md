@@ -1,170 +1,224 @@
-# echo 项目阶段开发文档：Django 前端入口与 PyCharm 工程整理
+# Echo Phase 1 前端入口与工程底座文档
 
-## 1. 阶段目标
+更新时间：2026-05-07
 
-本阶段的目标是为 `echo` 项目建立一个可以继续开发的 Django 工程底座，并完成一个满足当前技术栈方向的极简前端页面。
+补充说明：2026-05-08 已进入 Phase 2 评论与歌词设计阶段。评论/歌词数据结构详见 `docs/phase_2_comments_lyrics.md`，当前 Phase 1 文档仅保留工程底座和前端壳约定。
 
-页面内容暂时只展示项目名：
+## 1. 阶段定位
 
-```text
-echo
-```
+Phase 1 的目标已经从“只显示 echo 项目名的极简首页”，演进为：
 
-同时，为了后续能在 PyCharm 中正常编辑、运行和识别 Django，本阶段还对项目文件结构和 Python 虚拟环境进行了整理。
+- 建立可继续开发的 Django 工程底座。
+- 提供统一的 Spotify 风格前端壳。
+- 保留顶部栏、三栏布局、底部播放器等核心 UI 骨架。
+- 为后续音频上传、播放、评论、专辑等业务模块预留模板接口。
 
-## 2. 本阶段完成内容
+当前页面不是最终成品，但已经具备后续前后端继续接入的基础结构。
 
-### 2.1 创建 Django 项目基础结构
+## 2. 当前工程结构
 
-新增了标准 Django 项目结构：
+关键目录如下：
 
 ```text
 echo/
   manage.py
   echo_project/
-    __init__.py
     settings.py
     urls.py
     asgi.py
     wsgi.py
   core/
-    __init__.py
-    apps.py
-    urls.py
     views.py
+    urls.py
+  tracks/
+    models.py
+    views.py
+    urls.py
+    management/commands/seed_demo.py
+  albums/
+    models.py
+    views.py
+    urls.py
   templates/
-    core/
-      home.html
+    base.html
+    core/home.html
+    core/lyrics.html
+    core/comments.html
+    components/
+      track_card.html
+      track_row.html
+      album_card.html
+    tracks/
+      list.html
+      detail.html
+      upload.html
+    albums/
+      list.html
+  tools/
+    run_dev_server.bat
+  docs/
+    phase_1_frontend_setup.md
+    handoff_frontend_backend.md
+    frontend_dynamic_resources.md
+    phase_2_comments_lyrics.md
 ```
 
-其中：
+## 3. Phase 1 已完成内容
 
-- `echo_project/` 是 Django 项目的全局配置目录。
-- `core/` 是当前阶段的主业务 app。
-- `templates/core/home.html` 是首页模板。
-- `manage.py` 是 Django 项目的命令入口。
+### 3.1 Django 基础项目
 
-这样做的原因是：Django 推荐将全局配置和业务 app 分离，结构清晰，后续添加音频上传、评论、播放统计等功能时不会混乱。
+已完成：
 
-### 2.2 实现项目首页
+- Django 项目配置目录：`echo_project/`
+- 基础业务 app：`core/`
+- 音频业务 app：`tracks/`
+- 专辑业务 app：`albums/`
+- SQLite 数据库配置
+- 模板目录配置
+- 静态文件与媒体文件基础路径配置
 
-首页路由为：
+当前 `settings.py` 已包含：
 
-```text
-/
-```
+- `core`
+- `tracks`
+- `albums`
 
-对应视图：
+并配置了：
 
 ```python
-def home(request):
-    return render(request, "core/home.html")
-```
-
-页面使用 Tailwind CDN 写了一个极简深色风格界面，当前只展示 `echo`。
-
-这样做的原因是：当前需求只要求一个简单前端界面，但项目技术选型中明确包含 Tailwind CSS，因此页面先用 Tailwind 风格完成视觉基调，为后续音频卡片、播放器、评论区等 UI 扩展打基础。
-
-### 2.3 配置 SQLite、模板、静态文件和媒体文件路径
-
-在 `echo_project/settings.py` 中完成了基础配置：
-
-```python
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
-
-STATIC_URL = "static/"
-MEDIA_URL = "media/"
+STATIC_URL = "/static/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 ```
 
-这样做的原因是：SQLite 零配置、适合课程项目提交和演示；`MEDIA_ROOT` 后续会用于保存上传的音频文件和封面图。
+## 4. 当前前端入口
 
-### 2.4 整理 PyCharm 可识别的项目结构
+### 4.1 base.html
 
-最初项目根目录本身是一个虚拟环境目录，包含：
+`templates/base.html` 是当前最重要的前端入口。
 
-```text
-Include/
-Lib/
-Scripts/
-pyvenv.cfg
-```
+它负责：
 
-PyCharm 会根据这些文件判断该目录是 Python 虚拟环境，因此把项目源码误放到了“外部库”下面。
+- 页面 HTML 基础结构。
+- Tailwind CDN 配置。
+- 全局颜色、封面渐变类、滚动条样式。
+- 顶部栏。
+- 左侧音乐库。
+- 中部 `#main-content` 容器。
+- 右侧播放上下文栏。
+- 底部常驻播放器。
+- 播放器和布局状态 JavaScript。
 
-本阶段已将结构调整为：
+注意：`#main-content` 由 `base.html` 提供，子页面不应该再定义同名 `<main>`。
 
-```text
-echo/
-  .venv/           当前可用虚拟环境
-  .venv_broken/    旧虚拟环境备份
-  core/            Django app
-  echo_project/    Django 项目配置
-  templates/       页面模板
-  tools/           辅助脚本
-  manage.py
-  README.md
-```
+### 4.2 home.html
 
-这样做的原因是：正常的 PyCharm 工程应该是“项目源码在根目录，虚拟环境在 `.venv` 子目录”。这样 PyCharm 会把 `core`、`echo_project`、`templates` 当作项目源码，而不是外部库。
+`templates/core/home.html` 只负责首页内部 section 内容。
 
-### 2.5 修复 Django 无法加载的问题
+它使用这些后端变量：
 
-移动虚拟环境后，原解释器 `.venv\Scripts\python.exe` 仍然指向旧的 Python 路径，导致 PyCharm 无法导入 Django。
+- `display_name`
+- `hero_track`
+- `recommended_tracks`
+- `latest_tracks`
+- `hot_albums`
 
-本阶段处理方式：
+首页包含：
 
-- 将坏掉的旧虚拟环境移动为 `.venv_broken`
-- 重新创建可用的 `.venv`
-- 将已有的 Django 运行依赖迁移到新 `.venv`
-- 验证 `.venv\Scripts\python.exe` 可以正常导入 Django
+- Hero 推荐区
+- 为你推荐
+- 最新动态
+- 热门专辑与单曲
 
-验证命令：
+## 5. 当前视觉与交互规范
 
-```bat
-.venv\Scripts\python.exe -c "import django; print(django.get_version())"
-```
+当前采用 Spotify 风格：
 
-验证结果：
+- 深色优先。
+- 黑色外层背景。
+- 圆角面板。
+- 左中右三栏。
+- 底部播放器常驻。
+- 绿色用于播放状态。
+- 靛蓝色用于品牌主操作。
 
-```text
-5.2.13
-```
-
-这样做的原因是：PyCharm 需要一个真实可运行、能导入 Django 的解释器。只复制源码或只修改项目结构不够，解释器本身也必须可用。
-
-### 2.6 新增开发启动脚本
-
-新增：
+需要保留的视觉类：
 
 ```text
-tools/run_dev_server.bat
+cover-summer
+cover-city
+cover-eclipse
+cover-sea
+cover-ocean
+cover-signal
+cover-sunset
+cover-forest
+cover-night
+waveform
+echo-scrollbar
+bg-brand
+text-play
 ```
 
-内容为：
+## 6. 播放器接口
 
-```bat
-@echo off
-cd /d "%~dp0.."
-".venv\Scripts\python.exe" manage.py runserver 127.0.0.1:8000
+所有可以播放的按钮或卡片需要保留：
+
+```html
+data-echo-track
+data-src="{{ track.audio_url|default:'' }}"
+data-id="{{ track.id }}"
+data-title="{{ track.title|escape }}"
+data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
+data-cover="{{ track.cover_theme|default:'summer' }}"
 ```
 
-这样做的原因是：脚本直接使用项目内 `.venv` 的 Python，不依赖系统 PATH，也不会误用 Conda 或其他 Python 环境。
+`base.html` 中的 JavaScript 会监听 `[data-echo-track]` 点击，并更新底部播放器与右侧栏。
 
-## 3. 当前运行方式
+## 7. 当前路由
 
-在 PyCharm 终端或 Windows 命令行中进入项目根目录：
+核心路由：
 
-```bat
-cd D:\Code\PythonProjects\echo
+```text
+/                         -> core:home
+/lyrics/                  -> core:lyrics
+/comments/                -> core:comments
+/tracks/                  -> tracks:list
+/tracks/latest/           -> tracks:latest
+/tracks/upload/           -> tracks:upload
+/tracks/<pk>/             -> tracks:detail
+/albums/                  -> albums:list
 ```
 
-启动 Django 开发服务器：
+模板中应使用 Django URL 标签：
+
+```django
+{% url 'tracks:list' %}
+{% url 'tracks:latest' %}
+{% url 'tracks:upload' %}
+{% url 'tracks:detail' track.id %}
+{% url 'albums:list' %}
+{% url 'lyrics' %}
+{% url 'comments' %}
+```
+
+不要再使用 `href="#xxx"` 作为主要页面跳转。
+
+## 8. PyCharm 与运行方式
+
+推荐打开项目目录：
+
+```text
+D:\Code\PythonProjects\echo
+```
+
+解释器：
+
+```text
+D:\Code\PythonProjects\echo\.venv\Scripts\python.exe
+```
+
+启动开发服务器：
 
 ```bat
 tools\run_dev_server.bat
@@ -176,92 +230,54 @@ tools\run_dev_server.bat
 http://127.0.0.1:8000/
 ```
 
-## 4. PyCharm 配置方式
+## 9. 验证命令
 
-### 4.1 打开项目目录
+基础检查：
 
-PyCharm 应打开：
+```powershell
+.\.venv\Scripts\python.exe manage.py check
+```
+
+页面渲染检查：
+
+```powershell
+@'
+from django.test import Client
+c = Client()
+for path in ["/", "/tracks/", "/tracks/latest/", "/albums/"]:
+    r = c.get(path, HTTP_HOST="127.0.0.1")
+    print(path, r.status_code, "main-content" in r.content.decode(errors="ignore"))
+'@ | .\.venv\Scripts\python.exe manage.py shell
+```
+
+预期：
 
 ```text
-D:\Code\PythonProjects\echo
+System check identified no issues
+所有页面返回 200
+页面 HTML 中包含 main-content
 ```
 
-不要打开 `.venv`，也不要打开 `.venv_broken`。
+## 10. 后续建议
 
-### 4.2 设置解释器
+Phase 1 之后建议继续推进：
 
-解释器选择：
+1. 修复所有模板中的中文乱码，统一确保 UTF-8 显示正常。
+2. 为顶部栏补全全局 context processor：
+   - `display_name`
+   - `user_avatar_url`
+   - `unread_message_count`
+   - `friend_request_count`
+3. 将 `Track` 的播放量统计接入播放器点击事件。
+4. 完善上传表单的文件大小、类型校验。
+5. 按 `docs/phase_2_comments_lyrics.md` 增加评论和歌词模型。
+6. 用 HTMX 改造评论提交、歌词切换和中部栏局部刷新。
+7. 让 `tracks/list.html`、`tracks/detail.html`、`tracks/upload.html`、`albums/list.html` 的视觉进一步对齐首页。
 
-```text
-D:\Code\PythonProjects\echo\.venv\Scripts\python.exe
-```
+## 11. 注意事项
 
-如果 PyCharm 仍显示找不到 Django，可以执行：
-
-```text
-File -> Invalidate Caches / Restart
-```
-
-然后重新选择解释器。
-
-## 5. 当前验证结果
-
-已执行 Django 项目检查：
-
-```bat
-.venv\Scripts\python.exe manage.py check
-```
-
-结果：
-
-```text
-System check identified no issues (0 silenced).
-```
-
-说明当前项目配置、路由和模板加载均正常。
-
-## 6. 当前阶段文件变更总结
-
-新增或调整的关键文件：
-
-```text
-manage.py
-echo_project/settings.py
-echo_project/urls.py
-echo_project/asgi.py
-echo_project/wsgi.py
-core/apps.py
-core/urls.py
-core/views.py
-templates/core/home.html
-tools/run_dev_server.bat
-README.md
-.gitignore
-docs/phase_1_frontend_setup.md
-```
-
-其中 `.gitignore` 已忽略：
-
-```text
-.venv/
-.venv_broken/
-__pycache__/
-db.sqlite3
-media/
-staticfiles/
-.idea/
-```
-
-这样做的原因是：虚拟环境、缓存、数据库运行文件和 IDE 配置不属于核心源码，不应该进入后续代码提交。
-
-## 7. 下一阶段建议
-
-下一阶段可以进入真正的 MVP 功能开发：
-
-1. 创建 `AudioTrack` 模型。
-2. 配置 `media/` 音频文件上传目录。
-3. 编写音频上传表单。
-4. 在首页展示音频列表。
-5. 用 HTML 原生 `<audio>` 标签完成基础播放。
-
-完成以上内容后，项目就能打通“上传 -> 数据库 -> 播放”的主流程。
+- 不要随意覆盖 `tracks/` 和 `albums/` 的后端文件。
+- 不要删除 `base.html` 中的 `#main-content`，它是 HTMX 和页面壳的核心锚点。
+- 子模板不要重复定义 `<main id="main-content">`。
+- 修改大文件前先看 `git diff`，避免误删整份模板。
+- PowerShell 直接查看中文可能显示乱码，优先通过浏览器或 Django 渲染结果判断真实显示。

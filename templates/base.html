@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN" class="dark">
 <head>
   <meta charset="utf-8">
@@ -11,34 +11,31 @@
       darkMode: "class",
       theme: {
         extend: {
-          colors: {
-            brand: "#6366F1",
-            play: "#22C55E",
-            ink: "#121212",
-            panel: "#181818",
-          },
-          fontFamily: {
-            sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-          },
-          boxShadow: {
-            soft: "0 18px 60px rgba(0, 0, 0, 0.28)",
-          },
+          colors: { brand: "#6366F1", play: "#6366F1" },
+          boxShadow: { soft: "0 18px 60px rgba(0, 0, 0, 0.28)" },
         },
       },
     };
   </script>
   <style>
-    [x-cloak] { display: none !important; }
-    input[type="range"] { accent-color: #22C55E; }
+    input[type="range"] { accent-color: #6366F1; }
+    #echo-shell {
+      --top-row-height: 64px;
+      --player-row-height: 96px;
+      grid-template-rows: var(--top-row-height) minmax(0, 1fr) var(--player-row-height);
+    }
     .echo-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-    .echo-scrollbar::-webkit-scrollbar-thumb { background: rgba(113, 113, 122, 0.38); border-radius: 999px; }
+    .echo-scrollbar::-webkit-scrollbar-thumb { background: rgba(113,113,122,.38); border-radius: 999px; }
     .echo-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .cover-summer { background-image: linear-gradient(135deg, #fca5a5, #818cf8 54%, #0f172a); }
     .cover-city { background-image: linear-gradient(135deg, #bae6fd, #64748b 54%, #111827); }
     .cover-eclipse { background-image: linear-gradient(135deg, #312e81, #c084fc 52%, #020617); }
     .cover-sea { background-image: linear-gradient(135deg, #dbeafe, #38bdf8 52%, #164e63); }
+    .cover-ocean { background-image: linear-gradient(135deg, #cffafe, #0284c7 52%, #082f49); }
     .cover-signal { background-image: linear-gradient(135deg, #86efac, #0f766e 50%, #052e16); }
     .cover-sunset { background-image: linear-gradient(135deg, #fed7aa, #f97316 46%, #581c87); }
+    .cover-forest { background-image: linear-gradient(135deg, #bbf7d0, #15803d 52%, #052e16); }
+    .cover-night { background-image: linear-gradient(135deg, #1e1b4b, #4338ca 52%, #020617); }
     .waveform {
       background:
         repeating-linear-gradient(90deg, rgba(255,255,255,.72) 0 2px, transparent 2px 8px),
@@ -47,12 +44,234 @@
     }
     #left-sidebar.is-collapsed .sidebar-expanded,
     #left-sidebar.is-collapsed .sidebar-meta,
-    #left-sidebar.is-collapsed .sidebar-time {
+    #left-sidebar.is-collapsed .sidebar-time { display: none; }
+    #left-sidebar {
+      overflow: visible;
+      position: relative;
+      z-index: 40;
+    }
+    #content-grid {
+      overflow: visible;
+    }
+    #left-sidebar.create-open .sidebar-body {
+      overflow: visible;
+    }
+    .library-row {
+      position: relative;
+    }
+    .echo-tooltip {
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+      top: 50%;
+      left: calc(100% + 10px);
+      z-index: 999;
+      transform: translateY(-50%) translateX(-4px);
+      white-space: nowrap;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(24, 24, 27, .94);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 7px 9px;
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+    .dark .echo-tooltip {
+      border-color: rgba(255, 255, 255, .14);
+      background: rgba(82, 82, 91, .96);
+    }
+    .library-collapse-button {
+      z-index: 70;
+    }
+    .has-tooltip {
+      position: relative;
+    }
+    .has-tooltip:hover .echo-tooltip,
+    .has-tooltip:focus-visible .echo-tooltip {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
+    .top-tooltip {
+      left: auto;
+      right: calc(100% + 10px);
+      top: 50%;
+      z-index: 1200;
+      transform: translateY(-50%) translateX(4px);
+    }
+    .has-tooltip:hover .top-tooltip,
+    .has-tooltip:focus-visible .top-tooltip {
+      transform: translateY(-50%) translateX(0);
+    }
+    .top-search-cluster .top-tooltip {
+      left: calc(100% + 10px);
+      right: auto;
+      transform: translateY(-50%) translateX(-4px);
+    }
+    .top-search-cluster .has-tooltip:hover .top-tooltip,
+    .top-search-cluster .has-tooltip:focus-visible .top-tooltip {
+      transform: translateY(-50%) translateX(0);
+    }
+    .bottom-tooltip {
+      bottom: auto;
+      left: calc(100% + 10px);
+      top: 50%;
+      z-index: 1200;
+      transform: translateY(-50%) translateX(-4px);
+    }
+    .has-tooltip:hover .bottom-tooltip,
+    .has-tooltip:focus-visible .bottom-tooltip {
+      transform: translateY(-50%) translateX(0);
+    }
+    .playback-actions .bottom-tooltip {
+      left: auto;
+      right: calc(100% + 10px);
+      transform: translateY(-50%) translateX(4px);
+    }
+    .playback-actions .has-tooltip:hover .bottom-tooltip,
+    .playback-actions .has-tooltip:focus-visible .bottom-tooltip {
+      transform: translateY(-50%) translateX(0);
+    }
+    .top-search-wrap {
+      pointer-events: auto;
+      position: relative;
+      z-index: 20;
+      display: flex;
+      justify-content: center;
+      min-width: 0;
+      transform: translateX(var(--top-search-shift, 0px));
+      transition: transform 180ms ease;
+    }
+    .top-search-cluster {
+      pointer-events: auto;
+      width: min(720px, 100%);
+      min-width: 0;
+    }
+    .top-search-balance {
       display: none;
     }
-    #left-sidebar.is-collapsed .sidebar-top,
-    #left-sidebar.is-collapsed .library-row,
-    #left-sidebar.is-collapsed .sidebar-footer {
+    #left-sidebar:not(.is-collapsed) .sidebar-library-trigger .echo-tooltip {
+      display: none;
+    }
+    .context-close-button {
+      opacity: 0;
+      pointer-events: none;
+      z-index: 80;
+      transform: translateY(-50%) scale(.96);
+      transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, color 140ms ease;
+    }
+    #context-panel:hover .context-close-button,
+    #context-panel:focus-within .context-close-button {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(-50%) scale(1);
+    }
+    .context-title {
+      position: relative;
+      z-index: 1;
+      transition: transform 160ms ease;
+      will-change: transform;
+    }
+    #context-panel:hover .context-title {
+      transform: translateX(42px);
+    }
+    .lyrics-panel {
+      background:
+        radial-gradient(circle at 22% 18%, rgba(255,255,255,.22), transparent 30%),
+        radial-gradient(circle at 84% 8%, rgba(255,255,255,.14), transparent 24%),
+        linear-gradient(160deg, #6366F1, #4F46E5 52%, #312E81);
+    }
+    .library-create {
+      position: relative;
+      z-index: 80;
+    }
+    .library-create-button {
+      border-radius: 999px;
+      min-width: 96px;
+    }
+    .library-create-close-icon,
+    .library-create.is-open .library-create-plus-icon {
+      display: none;
+    }
+    .library-create.is-open .library-create-close-icon {
+      display: block;
+    }
+    .library-create-menu {
+      --create-menu-left: 0px;
+      --create-menu-top: 0px;
+      --create-menu-width: 420px;
+      opacity: 0;
+      pointer-events: none;
+      position: fixed;
+      left: var(--create-menu-left);
+      top: var(--create-menu-top);
+      z-index: 1000;
+      width: var(--create-menu-width);
+      transform: translateY(-6px) scale(.98);
+      transform-origin: top left;
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+    .library-create.is-open .library-create-menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+    .create-menu-item-icon {
+      transition: background-color 160ms ease, color 160ms ease, transform 180ms ease;
+    }
+    .create-menu-item:hover .create-menu-item-icon,
+    .create-menu-item:focus-visible .create-menu-item-icon {
+      background: #6366F1;
+      color: white;
+      transform: rotate(6deg) scale(1.08);
+    }
+    .create-menu-item-description {
+      color: rgb(82 82 91);
+    }
+    .dark .create-menu-item-description {
+      color: rgb(212 212 216);
+    }
+    .library-title-group {
+      position: relative;
+      z-index: 1;
+      transition: transform 160ms ease;
+      will-change: transform;
+    }
+    .library-collapse-button {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(.96);
+      transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, color 140ms ease;
+    }
+    #left-sidebar:not(.is-collapsed):hover .library-collapse-button,
+    #left-sidebar:not(.is-collapsed) .library-collapse-button:focus-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+    #left-sidebar:not(.is-collapsed):hover .library-title-group {
+      transform: translateX(42px);
+    }
+    #left-sidebar.is-collapsed .library-collapse-button { display: none; }
+    #left-sidebar.is-collapsed .library-content {
+      flex-direction: column;
+      gap: 10px;
+      transform: none;
+    }
+    #left-sidebar.is-collapsed .sidebar-library-trigger {
+      cursor: pointer;
+    }
+    .library-expand-icon { display: none; }
+    #left-sidebar.is-collapsed .sidebar-library-trigger:hover .library-book-icon,
+    #left-sidebar.is-collapsed .sidebar-library-trigger:focus-visible .library-book-icon {
+      display: none;
+    }
+    #left-sidebar.is-collapsed .sidebar-library-trigger:hover .library-expand-icon,
+    #left-sidebar.is-collapsed .sidebar-library-trigger:focus-visible .library-expand-icon {
+      display: block;
+    }
+    #left-sidebar.is-collapsed .library-row {
       justify-content: center;
       padding-left: 14px;
       padding-right: 14px;
@@ -60,6 +279,16 @@
     #left-sidebar.is-collapsed .sidebar-body {
       padding-left: 14px;
       padding-right: 14px;
+      overflow: visible !important;
+      scrollbar-width: none;
+    }
+    #left-sidebar.is-collapsed .sidebar-body::-webkit-scrollbar {
+      display: none;
+    }
+    #left-sidebar.is-collapsed .library-row,
+    #left-sidebar.is-collapsed .library-content,
+    #left-sidebar.is-collapsed .library-title-group {
+      overflow: visible;
     }
     #left-sidebar.is-collapsed .history-track {
       display: flex;
@@ -67,243 +296,454 @@
       justify-content: center;
       padding: 4px;
     }
-    #left-sidebar.is-collapsed #toggle-sidebar svg {
-      transform: rotate(180deg);
+    #left-sidebar.is-collapsed .history-track > span:first-child {
+      aspect-ratio: 1 / 1;
+      flex: 0 0 48px;
+      height: 48px;
+      width: 48px;
     }
-    #content-grid.context-closed {
-      column-gap: 0;
+    #left-sidebar.is-collapsed .sidebar-upload-action { margin-left: 0; }
+    #left-sidebar.is-collapsed .library-create-button {
+      min-width: 36px;
+      padding-left: 0;
+      padding-right: 0;
+      width: 36px;
+    }
+    #left-sidebar.is-compact .library-create-button {
+      min-width: 36px;
+      padding-left: 0;
+      padding-right: 0;
+      width: 36px;
+    }
+    #left-sidebar.is-compact .library-create-label {
+      display: none;
+    }
+    #content-grid.context-closed { column-gap: .5rem; }
+    #content-grid.layout-has-left #left-sidebar {
+      display: flex !important;
+    }
+    #content-grid.layout-no-left #left-sidebar,
+    #content-grid.layout-no-context #context-panel {
+      display: none !important;
+    }
+    #content-grid.layout-has-context #context-panel {
+      display: flex !important;
+      flex-direction: column;
+    }
+    #top-bar,
+    #playback-bar {
+      height: 100%;
+      min-height: 0;
+    }
+    #top-bar {
+      overflow: visible;
+    }
+    #playback-bar {
+      overflow: visible;
+    }
+    #playback-bar {
+      grid-template-columns: minmax(180px, 1fr) minmax(260px, 1.35fr) minmax(176px, auto);
+      --player-progress-width: 520px;
+      --player-volume-width: 128px;
+    }
+    .playback-controls {
+      width: min(100%, 560px);
+      min-height: 0;
+    }
+    .player-progress {
+      width: min(100%, var(--player-progress-width));
+      transition: width 180ms ease;
+    }
+    .playback-actions {
+      gap: clamp(8px, 1vw, 16px);
+      min-height: 0;
+      white-space: nowrap;
+    }
+    #player-volume {
+      width: var(--player-volume-width);
+      transition: width 180ms ease;
+    }
+    @media (max-width: 1200px) {
+      #playback-bar {
+        grid-template-columns: minmax(150px, .9fr) minmax(220px, 1.2fr) minmax(132px, auto);
+      }
+      .playback-actions {
+        gap: 10px;
+      }
+    }
+    @media (max-width: 1023px) {
+      #playback-bar {
+        grid-template-columns: minmax(140px, .9fr) minmax(210px, 1.15fr) minmax(80px, auto);
+      }
+      .playback-secondary-action {
+        display: none !important;
+      }
+      .player-progress {
+        grid-template-columns: 36px minmax(120px, 1fr) 36px;
+        gap: 8px;
+      }
+    }
+    @media (max-width: 820px) {
+      #playback-bar {
+        grid-template-columns: minmax(132px, 1fr) minmax(220px, 1.4fr);
+      }
+      .playback-actions {
+        display: none !important;
+      }
+      .playback-controls {
+        justify-self: end;
+      }
+      .playback-control-row {
+        gap: 12px;
+      }
+    }
+    .cover-media {
+      background-position: center;
+      background-size: cover;
+    }
+    @media (max-width: 1023px) {
+      #top-bar [data-top-action="upload"],
+      #top-bar .top-user-name {
+        display: none !important;
+      }
+    }
+    @media (max-width: 639px) {
+      #workspace-home-button {
+        display: none !important;
+      }
+      #top-bar {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+      .top-search-cluster {
+        width: 100%;
+        min-width: 0;
+      }
+      .top-search-balance {
+        display: none !important;
+      }
+      #echo-shell {
+        padding: 6px;
+      }
+      #playback-bar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 52px 18px;
+        align-content: center;
+        row-gap: 4px;
+      }
+      #player-cover {
+        height: 44px;
+        width: 44px;
+      }
+      .playback-controls {
+        display: contents;
+      }
+      .playback-control-row {
+        grid-column: 2;
+        grid-row: 1;
+        gap: 10px;
+      }
+      #main-content {
+        padding: 14px;
+      }
+      .player-progress {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-row: 2;
+        grid-template-columns: minmax(96px, 1fr);
+        justify-self: center;
+        width: min(100%, calc(100vw - 48px));
+      }
+      #player-current,
+      #player-duration {
+        display: none;
+      }
+    }
+    @media (max-width: 520px) {
+      #playback-bar {
+        row-gap: 8px;
+      }
+      .player-progress {
+        width: min(100%, 340px);
+      }
+    }
+    @media (max-width: 420px) {
+      .playback-control-row button[aria-label="上一首"],
+      .playback-control-row button[aria-label="下一首"] {
+        display: none;
+      }
+      .player-progress {
+        width: min(100%, 280px);
+      }
     }
   </style>
 </head>
 <body class="h-screen overflow-hidden bg-zinc-100 text-zinc-900 antialiased dark:bg-black dark:text-white">
-  <div id="echo-shell" class="grid h-screen grid-rows-[76px_1fr_112px] gap-2 bg-zinc-100 p-2 dark:bg-black">
-    <header id="top-bar" class="flex min-w-0 items-center gap-4 rounded-lg bg-white px-4 dark:bg-[#121212]">
-      <a href="{% url 'home' %}" class="flex shrink-0 items-center gap-4" hx-get="{% url 'home' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true" aria-label="Echo 首页">
-        <span class="grid h-[60px] w-[60px] place-items-center rounded-lg bg-brand/15 text-brand">
-          <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/>
-          </svg>
+  <div id="echo-shell" class="grid h-screen grid-rows-[64px_1fr_96px] gap-2 bg-zinc-100 p-2 dark:bg-black">
+    <header id="top-bar" class="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-white px-2 sm:gap-4 sm:px-4 dark:bg-[#121212]">
+      <a href="{% url 'home' %}" class="relative z-20 flex min-w-0 shrink-0 items-center gap-3" aria-label="Echo 首页" data-home-nav onclick="return window.EchoHome ? window.EchoHome(event) : true">
+        <span class="grid h-11 w-11 place-items-center rounded-lg bg-brand/15 text-brand sm:h-12 sm:w-12">
+          <svg viewBox="0 0 24 24" class="h-6 w-6 sm:h-7 sm:w-7" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg>
         </span>
-        <span class="hidden text-4xl font-black tracking-normal sm:block">Echo</span>
+        <span class="hidden text-2xl font-black tracking-normal sm:block">Echo</span>
       </a>
-      <button type="button" class="ml-2 grid h-14 w-14 shrink-0 place-items-center rounded-full bg-zinc-200 text-zinc-800 transition hover:bg-zinc-300 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700" aria-label="回到首页" hx-get="{% url 'home' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
-        <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z"/></svg>
-      </button>
-      <form class="mx-auto flex h-12 w-full max-w-xl items-center gap-3 rounded-full bg-zinc-200/80 px-5 dark:bg-zinc-900" hx-get="{% url 'home' %}" hx-trigger="keyup changed delay:500ms from:input" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML">
-        <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input name="q" class="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑或用户..." autocomplete="off">
-      </form>
-      <button id="theme-toggle" type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="切换深浅色">
-        <svg viewBox="0 0 24 24" class="h-5 w-5 dark:hidden" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/><circle cx="12" cy="12" r="4"/></svg>
-        <svg viewBox="0 0 24 24" class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></svg>
-      </button>
-      <button type="button" class="relative hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800 sm:grid" aria-label="消息">
-        <span class="absolute right-2 top-2 h-3 w-3 rounded-full bg-rose-500"></span>
-        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      </button>
-      <button class="hidden shrink-0 items-center gap-3 rounded-full pr-2 sm:flex" type="button">
-        <span class="cover-summer h-11 w-11 rounded-full border border-zinc-200 dark:border-zinc-700"></span>
-        <span class="font-medium">Acacia</span>
-        <svg viewBox="0 0 24 24" class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-      </button>
+
+      <div class="top-search-wrap">
+      <div class="top-search-cluster flex items-center justify-center gap-2 sm:gap-3">
+        <a id="workspace-home-button" href="{% url 'home' %}" class="has-tooltip pointer-events-auto relative z-30 hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 text-zinc-800 transition hover:bg-zinc-300 sm:grid dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700" aria-label="回到首页" data-home-nav onclick="return window.EchoHome ? window.EchoHome(event) : true">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z"/></svg>
+          <span class="echo-tooltip top-tooltip" role="tooltip">首页</span>
+        </a>
+        <form class="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full bg-zinc-200/80 px-3 sm:h-12 sm:gap-3 sm:px-5 dark:bg-zinc-900" action="{% url 'tracks:list' %}">
+          <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input name="q" class="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑或用户..." autocomplete="off">
+        </form>
+        <span class="top-search-balance hidden sm:block" aria-hidden="true"></span>
+      </div>
+      </div>
+
+      <div class="relative z-20 flex min-w-0 items-center justify-end gap-1 sm:gap-2 lg:gap-3">
+        <button id="theme-toggle" type="button" class="has-tooltip grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 sm:h-11 sm:w-11 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="切换深浅色">
+          <svg viewBox="0 0 24 24" class="h-5 w-5 dark:hidden" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/><circle cx="12" cy="12" r="4"/></svg>
+          <svg viewBox="0 0 24 24" class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></svg>
+          <span class="echo-tooltip top-tooltip" role="tooltip">切换主题</span>
+        </button>
+        <button type="button" data-top-action="messages" class="has-tooltip relative hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 md:grid dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="消息">
+          {% if unread_message_count|default:0 %}
+            <span class="absolute right-2 top-2 h-3 w-3 rounded-full bg-rose-500"></span>
+          {% endif %}
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="echo-tooltip top-tooltip" role="tooltip">消息</span>
+        </button>
+        <button type="button" data-top-action="friends" class="has-tooltip hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 lg:grid dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="好友">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="echo-tooltip top-tooltip" role="tooltip">好友</span>
+        </button>
+        <a href="{% url 'tracks:upload' %}" data-top-action="upload" class="hidden shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 sm:inline-flex">上传</a>
+        <button type="button" class="has-tooltip flex shrink-0 items-center gap-2 rounded-full pl-1 pr-1 transition hover:bg-zinc-100 sm:pr-2 dark:hover:bg-zinc-900" aria-label="用户菜单">
+          {% if user_avatar_url %}
+            <img src="{{ user_avatar_url }}" alt="" class="h-11 w-11 rounded-full object-cover">
+          {% else %}
+            <span class="cover-eclipse grid h-11 w-11 place-items-center rounded-full text-sm font-black text-white">
+              {{ display_name|default:"E"|first|upper }}
+            </span>
+          {% endif %}
+          <span class="top-user-name hidden max-w-24 truncate text-sm font-semibold lg:block">{{ display_name|default:"Echo 用户" }}</span>
+          <svg viewBox="0 0 24 24" class="top-user-chevron hidden h-4 w-4 text-zinc-500 sm:block" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          <span class="echo-tooltip top-tooltip lg:hidden" role="tooltip">用户菜单</span>
+        </button>
+      </div>
     </header>
+
     <div id="content-grid" class="grid min-h-0 grid-cols-[var(--left-width)_minmax(0,1fr)_var(--right-width)] gap-2 overflow-hidden rounded-2xl bg-transparent transition-all duration-300"
-         style="--left-width: 300px; --right-width: 300px;">
+         style="--side-width: clamp(320px, 24vw, 400px); --left-width: var(--side-width); --right-width: var(--side-width);">
       <aside id="left-sidebar" class="hidden min-h-0 overflow-hidden rounded-lg bg-white/95 transition-all duration-300 dark:bg-[#121212] lg:flex lg:flex-col">
         <div class="sidebar-body flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 py-6 echo-scrollbar">
           <section>
-            <div class="library-row mb-4 flex items-center gap-3">
-              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-100 dark:bg-zinc-900">
-                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V6a2 2 0 0 1 2-2h12v15"/><path d="M4 19a2 2 0 0 0 2 2h12"/><path d="M9 9h6M9 13h4"/></svg>
-              </span>
-              <h2 class="sidebar-expanded font-bold">你的音乐库</h2>
-              <a href="#upload" class="sidebar-expanded ml-auto grid h-9 w-9 place-items-center rounded-full text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="上传音乐">
-                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-              </a>
-              <button data-toggle-sidebar type="button" class="grid h-9 w-9 place-items-center rounded-full text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="收起侧栏">
+            <div class="library-row mb-4 flex items-center">
+              <button data-toggle-sidebar type="button" class="library-collapse-button has-tooltip absolute left-0 top-0 grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="收起音乐库">
                 <svg viewBox="0 0 24 24" class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                <span class="echo-tooltip" role="tooltip">收起音乐库</span>
               </button>
+              <div class="library-content flex min-w-0 flex-1 items-center gap-3">
+                <div class="library-title-group flex min-w-0 items-center gap-3">
+                  <button data-library-trigger type="button" class="sidebar-library-trigger has-tooltip grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-700 transition hover:bg-zinc-200 hover:text-zinc-950 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="展开音乐库">
+                    <svg viewBox="0 0 24 24" class="library-book-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V6a2 2 0 0 1 2-2h12v15"/><path d="M4 19a2 2 0 0 0 2 2h12"/><path d="M9 9h6M9 13h4"/></svg>
+                    <svg viewBox="0 0 24 24" class="library-expand-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    <span class="echo-tooltip" role="tooltip">展开音乐库</span>
+                  </button>
+                  <h2 class="sidebar-expanded min-w-0 truncate font-bold">音乐库</h2>
+                </div>
+                <div class="library-create sidebar-upload-action ml-auto">
+                  <button data-library-create type="button" class="library-create-button flex h-9 shrink-0 items-center justify-center gap-2 bg-zinc-100 px-4 text-sm font-bold text-zinc-900 transition hover:bg-zinc-200 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800" aria-expanded="false" aria-haspopup="menu" aria-label="创建">
+                    <svg viewBox="0 0 24 24" class="library-create-plus-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+                    <svg viewBox="0 0 24 24" class="library-create-close-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    <span class="library-create-label sidebar-expanded">创建</span>
+                  </button>
+                  <div class="library-create-menu rounded-lg border border-zinc-200 bg-white p-2 text-zinc-950 shadow-soft dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" role="menu" aria-label="创建菜单">
+                    <a href="{% url 'tracks:upload' %}" class="create-menu-item flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M5 21h14"/></svg>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-bold">上传音乐</span>
+                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">发布一首新的音频作品</span>
+                      </span>
+                    </a>
+                    <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M12 8h.01M15 8h.01"/></svg>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-bold">歌单</span>
+                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">创建包含歌曲或单集的歌单</span>
+                      </span>
+                    </button>
+                    <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/></svg>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-bold">共享合辑</span>
+                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">将好友的音乐喜好合并为一个歌单</span>
+                      </span>
+                    </button>
+                    <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V6a2 2 0 0 1 2-2h5l2 3h5a2 2 0 0 1 2 2v11H4Z"/></svg>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-bold">文件夹</span>
+                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">管理歌单</span>
+                      </span>
+                    </button>
+                    <a href="{% url 'lyrics:upload' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h12M4 13h16M4 17h10"/><path d="M18 14v6M15 17h6"/></svg>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-bold">上传歌词</span>
+                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">上传 LRC 或粘贴纯文本歌词</span>
+                      </span>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="sidebar-expanded flex gap-3">
-              <button class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand">已上传</button>
-              <button class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand">已点赞</button>
+              <a class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand" href="{% url 'tracks:list' %}">全部</a>
+              <a class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand" href="{% url 'tracks:latest' %}">最新</a>
             </div>
           </section>
 
           <section class="min-h-0">
             <h2 class="sidebar-expanded mb-4 text-sm font-bold text-zinc-600 dark:text-zinc-300">最近播放</h2>
             <div class="space-y-3">
-              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="夏夜晚风" data-echo-track data-src="" data-title="夏夜晚风" data-artist="Eric 周兴" data-cover="summer">
-                <span class="cover-summer h-12 w-12 rounded-lg"></span>
-                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">夏夜晚风</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by Eric 周兴</span></span>
-                <span class="sidebar-time text-xs text-zinc-500">2小时前</span>
-              </button>
-              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="城市旅人" data-echo-track data-src="" data-title="城市旅人" data-artist="柴郡 Cheshire" data-cover="city">
-                <span class="cover-city h-12 w-12 rounded-lg"></span>
-                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">城市旅人</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by 柴郡 Cheshire</span></span>
-                <span class="sidebar-time text-xs text-zinc-500">5小时前</span>
-              </button>
-              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="Eclipse" data-echo-track data-src="" data-title="Eclipse" data-artist="Luna Chant" data-cover="eclipse">
-                <span class="cover-eclipse h-12 w-12 rounded-lg"></span>
-                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">Eclipse</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by Luna Chant</span></span>
-                <span class="sidebar-time text-xs text-zinc-500">1天前</span>
-              </button>
-              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="回声与海" data-echo-track data-src="" data-title="回声与海" data-artist="海边的卡夫卡" data-cover="sea">
-                <span class="cover-sea h-12 w-12 rounded-lg"></span>
-                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">回声与海</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by 海边的卡夫卡</span></span>
-                <span class="sidebar-time text-xs text-zinc-500">1天前</span>
-              </button>
-              <button class="history-track group grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900" title="山间信号" data-echo-track data-src="" data-title="山间信号" data-artist="低空飞行" data-cover="signal">
-                <span class="cover-signal h-12 w-12 rounded-lg"></span>
-                <span class="sidebar-meta min-w-0"><span class="block truncate font-semibold">山间信号</span><span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by 低空飞行</span></span>
-                <span class="sidebar-time text-xs text-zinc-500">2天前</span>
-              </button>
+              {% for track in shell_recent_tracks %}
+                <button type="button"
+                        class="history-track group grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                        title="{{ track.title }}"
+                        data-echo-track
+                        data-src="{{ track.audio_url|default:'' }}"
+                        data-id="{{ track.id }}"
+                        data-title="{{ track.title|escape }}"
+                        data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
+                        data-cover="{{ track.cover_theme|default:'summer' }}"
+                        data-cover-url="{{ track.cover_url }}">
+                  <span class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} cover-media h-12 w-12 rounded-lg"
+                        {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}></span>
+                  <span class="sidebar-meta min-w-0">
+                    <span class="block truncate font-semibold">{{ track.title }}</span>
+                    <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">by {{ track.artist|default:"Echo 用户" }}</span>
+                  </span>
+                  <span class="sidebar-time text-xs text-zinc-500">{{ track.updated_at|date:"m-d" }}</span>
+                </button>
+              {% empty %}
+                <a href="{% url 'tracks:upload' %}" class="sidebar-expanded block rounded-lg border border-dashed border-zinc-300 px-4 py-5 text-sm text-zinc-500 transition hover:border-brand hover:text-brand dark:border-zinc-700">
+                  上传第一首音乐后，这里会出现最近播放内容。
+                </a>
+              {% endfor %}
             </div>
           </section>
-        </div>
-
-        <div class="sidebar-footer p-5">
-          <button data-toggle-sidebar class="flex w-full items-center justify-center gap-3 rounded-lg px-3 py-3 text-sm text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white" type="button" aria-label="收起侧栏">
-            <svg viewBox="0 0 24 24" class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
-            <span class="sidebar-expanded">收起侧栏</span>
-          </button>
         </div>
       </aside>
 
       <section class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-transparent">
-        {% block main %}
-        {% endblock %}
+        <main id="main-content" class="min-h-0 flex-1 overflow-y-auto rounded-lg bg-white p-4 sm:p-6 dark:bg-[#121212] echo-scrollbar">
+          {% block main %}{% endblock %}
+        </main>
       </section>
 
       <aside id="context-panel" class="hidden min-h-0 overflow-hidden rounded-lg bg-white/95 transition-all duration-300 dark:bg-[#121212] xl:flex xl:flex-col">
-        <div class="flex h-[76px] shrink-0 items-center justify-between px-5">
-          <h2 class="font-bold">正在播放</h2>
-          <button id="close-context" type="button" class="grid h-9 w-9 place-items-center rounded-full transition hover:bg-zinc-200 dark:hover:bg-zinc-800" aria-label="关闭右侧栏">
+        <div class="relative flex h-[76px] shrink-0 items-center px-5">
+          <button id="close-context" type="button" class="context-close-button has-tooltip absolute left-5 top-1/2 grid h-9 w-9 place-items-center rounded-full transition hover:bg-zinc-200 dark:hover:bg-zinc-800" aria-label="关闭右侧栏">
             <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            <span class="echo-tooltip" role="tooltip">关闭右侧栏</span>
           </button>
+          <h2 class="context-title font-bold">正在播放</h2>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto p-5 echo-scrollbar">
-          <div class="cover-summer relative aspect-[4/3] overflow-hidden rounded-lg">
-            <div class="absolute right-3 top-3 rounded-full bg-black/30 px-3 py-1 text-sm text-white">1/6</div>
-            <div class="absolute bottom-4 left-4 right-4 h-1 rounded-full bg-white/30">
-              <div class="h-full w-1/4 rounded-full bg-white"></div>
-            </div>
-          </div>
-          <h3 class="mt-5 text-2xl font-black">夏夜晚风</h3>
-          <p class="mt-1 text-zinc-500 dark:text-zinc-400">by Eric 周兴</p>
-
-          <div class="mt-5 rounded-lg bg-white p-4 shadow-sm dark:bg-zinc-900">
-            <div class="flex items-center gap-3">
-              <span class="h-12 w-12 rounded-full bg-zinc-900 dark:bg-zinc-700"></span>
-              <div class="min-w-0 flex-1">
-                <p class="font-bold">Eric 周兴</p>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400">12.4K 关注者</p>
-              </div>
-              <button class="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white">关注</button>
-            </div>
-            <p class="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">独立音乐人，擅长用温柔的旋律记录生活中的细微情感。</p>
-          </div>
-
-          <div class="mt-5 space-y-2 text-sm">
-            <h4 class="mb-3 text-base font-bold">歌曲信息</h4>
-            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">专辑</span><span>《晚风集》</span></div>
-            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">发行日期</span><span>2023-07-21</span></div>
-            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">风格</span><span>Indie / Pop</span></div>
-            <div class="grid grid-cols-[88px_1fr] gap-2"><span class="text-zinc-500">时长</span><span>03:42</span></div>
-          </div>
-
-          <div class="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
-            <h4 class="mb-4 font-bold">下一首播放</h4>
-            <button class="grid w-full grid-cols-[48px_1fr_auto] items-center gap-3 rounded-lg text-left" data-echo-track data-title="城市旅人" data-artist="柴郡 Cheshire" data-cover="city">
-              <span class="cover-city h-12 w-12 rounded-lg"></span>
-              <span class="min-w-0"><span class="block truncate font-semibold">城市旅人</span><span class="block truncate text-sm text-zinc-500">by 柴郡 Cheshire</span></span>
-              <span class="text-sm text-zinc-500">04:01</span>
-            </button>
-          </div>
-
-          <div class="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
-            <h4 class="mb-4 font-bold">同步歌词</h4>
-            <div class="space-y-4 text-sm leading-7 text-zinc-500 dark:text-zinc-400">
-              <p>晚风经过旧楼顶</p>
-              <p class="text-lg font-bold text-white">把城市的灯慢慢吹醒</p>
-              <p>你说别急着回到人群</p>
-              <p>让耳机里的鼓点继续旅行</p>
-              <p>每一次回声落在海面</p>
-              <p>都像夏天写给夜晚的信</p>
-              <p>我们沿着月光向前</p>
-              <p>把没说出口的话唱轻</p>
-            </div>
-          </div>
-
-          <div class="mt-6 border-t border-zinc-200 pb-8 pt-5 dark:border-zinc-800">
-            <h4 class="mb-4 font-bold">热门评论</h4>
-            <div class="space-y-3">
-              <article class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-900">
-                <p class="text-sm font-semibold">Acacia</p>
-                <p class="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">副歌一进来的瞬间，真的像傍晚从桥上吹过来的风。</p>
-              </article>
-              <article class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-900">
-                <p class="text-sm font-semibold">柴郡 Cheshire</p>
-                <p class="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">这首适合写代码到最后十分钟的时候听，有一种轻轻收尾的感觉。</p>
-              </article>
-              <article class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-900">
-                <p class="text-sm font-semibold">Luna Chant</p>
-                <p class="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">封面色和编曲很搭，温柔但不黏。</p>
-              </article>
-            </div>
-          </div>
+          <div id="side-cover" class="cover-summer cover-media relative aspect-[4/3] overflow-hidden rounded-lg"></div>
+          <h3 id="side-title" class="mt-5 truncate text-2xl font-black">等待播放</h3>
+          <p id="side-artist" class="mt-1 truncate text-zinc-500 dark:text-zinc-400">Echo 用户</p>
         </div>
       </aside>
     </div>
 
-    <footer id="playback-bar" class="grid grid-cols-[minmax(180px,1fr)_minmax(260px,1.5fr)_minmax(180px,1fr)] items-center gap-4 rounded-lg bg-white px-4 shadow-soft dark:bg-black">
-      <div class="flex min-w-0 items-center gap-4">
-        <span id="player-cover" class="cover-summer h-[72px] w-[72px] shrink-0 rounded-lg"></span>
+    <footer id="playback-bar" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-white px-3 shadow-soft sm:gap-4 sm:px-4 md:grid-cols-[minmax(150px,1fr)_minmax(240px,1.5fr)_minmax(120px,1fr)] dark:bg-black">
+      <div class="flex min-w-0 items-center gap-3">
+        <span id="player-cover" class="cover-summer cover-media h-12 w-12 shrink-0 rounded-lg sm:h-14 sm:w-14"></span>
         <div class="min-w-0">
-          <p id="player-title" class="truncate text-lg font-bold">夏夜晚风</p>
-          <p id="player-artist" class="truncate text-zinc-500 dark:text-zinc-400">Eric 周兴</p>
+          <p id="player-title" class="truncate text-sm font-bold">等待播放</p>
+          <p id="player-artist" class="truncate text-xs text-zinc-500 dark:text-zinc-400">Echo 用户</p>
         </div>
-        <button class="hidden text-play sm:block" type="button" aria-label="喜欢">
-          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M12 21s-7.5-4.35-9.5-8.5C.92 9.22 2.7 5.5 6.25 5.5c2.05 0 3.24 1.08 3.95 2.05.71-.97 1.9-2.05 3.95-2.05 3.55 0 5.33 3.72 3.75 7C19.5 16.65 12 21 12 21Z"/></svg>
-        </button>
       </div>
-
-      <div class="flex min-w-0 flex-col items-center gap-3">
-        <div class="flex items-center gap-5">
-          <button class="hidden text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white sm:block" type="button" aria-label="随机播放">
+      <div class="playback-controls flex min-w-0 flex-col items-center gap-3">
+        <div class="playback-control-row flex items-center gap-3 sm:gap-5">
+          <button class="has-tooltip hidden text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white sm:block" type="button" aria-label="随机播放">
             <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20l17-17M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+            <span class="echo-tooltip bottom-tooltip" role="tooltip">随机播放</span>
           </button>
-          <button class="text-zinc-700 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white" type="button" aria-label="上一首">
-            <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M7 6h2v12H7V6Zm3 6 9-6v12l-9-6Z"/></svg>
+          <button class="has-tooltip text-zinc-700 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white" type="button" aria-label="上一首">
+            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M7 6h2v12H7V6Zm3 6 9-6v12l-9-6Z"/></svg>
+            <span class="echo-tooltip bottom-tooltip" role="tooltip">上一首</span>
           </button>
-          <button id="player-toggle" class="grid h-14 w-14 place-items-center rounded-full bg-zinc-950 text-white transition hover:scale-105 dark:bg-white dark:text-zinc-950" type="button" aria-label="播放或暂停">
-            <svg id="player-play-icon" viewBox="0 0 24 24" class="hidden h-7 w-7" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
-            <svg id="player-pause-icon" viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>
+          <button id="player-toggle" class="has-tooltip grid h-11 w-11 place-items-center rounded-full bg-zinc-950 text-white transition hover:scale-105 sm:h-12 sm:w-12 dark:bg-white dark:text-zinc-950" type="button" aria-label="播放或暂停">
+            <svg id="player-play-icon" viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
+            <svg id="player-pause-icon" viewBox="0 0 24 24" class="hidden h-6 w-6" fill="currentColor"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>
+            <span class="echo-tooltip bottom-tooltip" role="tooltip">播放/暂停</span>
           </button>
-          <button class="text-zinc-700 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white" type="button" aria-label="下一首">
-            <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor"><path d="M15 6h2v12h-2V6ZM5 18V6l9 6-9 6Z"/></svg>
+          <button class="has-tooltip text-zinc-700 transition hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white" type="button" aria-label="下一首">
+            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M15 6h2v12h-2V6ZM5 18V6l9 6-9 6Z"/></svg>
+            <span class="echo-tooltip bottom-tooltip" role="tooltip">下一首</span>
           </button>
-          <button class="hidden text-play sm:block" type="button" aria-label="循环播放">
+          <button class="has-tooltip hidden text-play sm:block" type="button" aria-label="循环播放">
             <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span class="echo-tooltip bottom-tooltip" role="tooltip">循环播放</span>
           </button>
         </div>
-        <div class="grid w-full grid-cols-[44px_1fr_44px] items-center gap-3 text-xs text-zinc-500">
-          <span id="player-current">01:28</span>
-          <input id="player-progress" type="range" min="0" max="222" value="88" class="w-full">
-          <span id="player-duration" class="text-right">03:42</span>
+        <div class="player-progress grid w-full grid-cols-[44px_1fr_44px] items-center gap-3 text-xs text-zinc-500">
+          <span id="player-current">00:00</span>
+          <input id="player-progress" type="range" min="0" max="100" value="0" class="w-full">
+          <span id="player-duration">--:--</span>
         </div>
       </div>
-
-      <div class="hidden min-w-0 items-center justify-end gap-4 md:flex">
-        <button type="button" class="text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white" aria-label="音量">
-          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <div class="playback-actions hidden min-w-0 items-center justify-end gap-3 md:flex lg:gap-4">
+        <button id="lyrics-nav"
+                type="button"
+                class="has-tooltip text-zinc-500 transition hover:text-brand"
+                aria-label="歌词台词"
+                hx-get="{% url 'lyrics' %}"
+                hx-select="#main-content"
+                hx-target="#main-content"
+                hx-swap="outerHTML"
+                hx-push-url="true">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h10M4 14h16M4 18h12"/></svg>
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">歌词</span>
         </button>
-        <input id="player-volume" type="range" min="0" max="1" step="0.01" value="0.72" class="w-32">
-        <button type="button" class="grid h-12 w-12 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="播放队列">
+        <button id="comments-nav"
+                type="button"
+                class="has-tooltip text-zinc-500 transition hover:text-brand"
+                aria-label="评论"
+                hx-get="{% url 'comments' %}"
+                hx-select="#main-content"
+                hx-target="#main-content"
+                hx-swap="outerHTML"
+                hx-push-url="true">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">评论</span>
+        </button>
+        <span class="has-tooltip inline-flex items-center">
+          <input id="player-volume" type="range" min="0" max="1" step="0.01" value="0.72" class="w-24 lg:w-32" aria-label="音量">
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">音量</span>
+        </span>
+        <button type="button" class="playback-secondary-action has-tooltip grid h-11 w-11 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="播放队列">
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">播放队列</span>
         </button>
-        <button id="open-context" type="button" class="grid h-12 w-12 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="打开右侧栏">
+        <button id="open-context" type="button" class="has-tooltip grid h-11 w-11 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="打开右侧栏">
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">播放上下文</span>
         </button>
       </div>
       <audio id="echo-audio" preload="metadata"></audio>
@@ -313,127 +753,366 @@
   <script>
     (function () {
       const root = document.documentElement;
+      const topBar = document.getElementById("top-bar");
+      const topSearchWrap = document.querySelector(".top-search-wrap");
       const shell = document.getElementById("content-grid");
+      const playbackBar = document.getElementById("playback-bar");
+      const playbackControls = document.querySelector(".playback-controls");
+      const playbackActions = document.querySelector(".playback-actions");
       const leftSidebar = document.getElementById("left-sidebar");
       const contextPanel = document.getElementById("context-panel");
       const themeToggle = document.getElementById("theme-toggle");
       const sidebarToggles = document.querySelectorAll("[data-toggle-sidebar]");
+      const libraryTrigger = document.querySelector("[data-library-trigger]");
+      const libraryCreate = document.querySelector(".library-create");
+      const libraryCreateButton = document.querySelector("[data-library-create]");
+      const libraryCreateMenu = document.querySelector(".library-create-menu");
       const closeContext = document.getElementById("close-context");
       const openContext = document.getElementById("open-context");
       const audio = document.getElementById("echo-audio");
       const volume = document.getElementById("player-volume");
       const progress = document.getElementById("player-progress");
+      const current = document.getElementById("player-current");
+      const duration = document.getElementById("player-duration");
       const title = document.getElementById("player-title");
       const artist = document.getElementById("player-artist");
       const cover = document.getElementById("player-cover");
+      const sideCover = document.getElementById("side-cover");
+      const sideTitle = document.getElementById("side-title");
+      const sideArtist = document.getElementById("side-artist");
       const toggle = document.getElementById("player-toggle");
       const playIcon = document.getElementById("player-play-icon");
       const pauseIcon = document.getElementById("player-pause-icon");
+      const lyricsNav = document.getElementById("lyrics-nav");
+      const commentsNav = document.getElementById("comments-nav");
+      const coverClasses = ["cover-summer", "cover-city", "cover-eclipse", "cover-sea", "cover-ocean", "cover-signal", "cover-sunset", "cover-forest", "cover-night"];
 
-      const coverClasses = ["cover-summer", "cover-city", "cover-eclipse", "cover-sea", "cover-signal", "cover-sunset"];
-      const setCover = function (name) {
-        coverClasses.forEach(function (className) { cover.classList.remove(className); });
-        cover.classList.add("cover-" + (name || "summer"));
-      };
-
-      const applyTheme = function (theme) {
-        root.classList.toggle("dark", theme !== "light");
-        localStorage.setItem("echo_theme", theme !== "light" ? "dark" : "light");
-      };
-      const applySidebar = function (collapsed) {
-        shell.style.setProperty("--left-width", collapsed ? "76px" : "300px");
-        leftSidebar.classList.toggle("is-collapsed", collapsed);
-        sidebarToggles.forEach(function (button) {
-          button.setAttribute("aria-label", collapsed ? "展开侧栏" : "收起侧栏");
-          button.setAttribute("aria-pressed", collapsed ? "true" : "false");
-        });
-        localStorage.setItem("echo_sidebar_collapsed", collapsed ? "true" : "false");
-      };
-      const applyContext = function (open) {
-        shell.style.setProperty("--right-width", open ? "300px" : "0px");
-        shell.classList.toggle("context-closed", !open);
-        contextPanel.style.display = open ? "" : "none";
-        contextPanel.classList.toggle("xl:flex", open);
-        contextPanel.classList.toggle("xl:hidden", !open);
-        openContext.setAttribute("aria-pressed", open ? "true" : "false");
-        openContext.classList.toggle("text-brand", open);
-        localStorage.setItem("echo_context_panel_open", open ? "true" : "false");
-      };
-      const setPlaying = function (playing) {
+      function formatTime(value) {
+        if (!Number.isFinite(value)) return "--:--";
+        const minutes = Math.floor(value / 60);
+        const seconds = Math.floor(value % 60).toString().padStart(2, "0");
+        return minutes + ":" + seconds;
+      }
+      function setCover(element, name, url) {
+        coverClasses.forEach(function (className) { element.classList.remove(className); });
+        if (url) {
+          element.style.backgroundImage = "url('" + url.replace(/'/g, "\\'") + "')";
+          return;
+        }
+        element.style.backgroundImage = "";
+        element.classList.add("cover-" + (name || "summer"));
+      }
+      function setPlaying(playing) {
         playIcon.classList.toggle("hidden", playing);
         pauseIcon.classList.toggle("hidden", !playing);
+      }
+      function setTrackResourceLinks(trackId) {
+        if (!trackId) return;
+        const lyricsUrl = "{% url 'lyrics' %}?track=" + encodeURIComponent(trackId);
+        const commentsUrl = "{% url 'comments' %}?track=" + encodeURIComponent(trackId);
+        if (lyricsNav) {
+          lyricsNav.setAttribute("hx-get", lyricsUrl);
+          lyricsNav.setAttribute("href", lyricsUrl);
+        }
+        if (commentsNav) {
+          commentsNav.setAttribute("hx-get", commentsUrl);
+          commentsNav.setAttribute("href", commentsUrl);
+        }
+        localStorage.setItem("echo_current_track_id", trackId);
+      }
+      function refreshActiveResource(trackId) {
+        if (!trackId) return;
+        const activeResource = document.querySelector("#main-content [data-echo-resource]");
+        if (!activeResource) return;
+        const resourceName = activeResource.dataset.echoResource;
+        const baseUrl = resourceName === "comments" ? "{% url 'comments' %}" : "{% url 'lyrics' %}";
+        const url = baseUrl + "?track=" + encodeURIComponent(trackId);
+        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" } })
+          .then(function (response) { return response.text(); })
+          .then(function (html) {
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            const nextMain = doc.querySelector("#main-content");
+            const currentMain = document.getElementById("main-content");
+            if (nextMain && currentMain) {
+              currentMain.outerHTML = nextMain.outerHTML;
+              history.pushState({}, "", url);
+            }
+          })
+          .catch(function () {});
+      }
+      function mainContentHasDirtyForm() {
+        const dirtyForms = document.querySelectorAll("#main-content form[data-echo-dirty='true']");
+        return Array.from(dirtyForms).some(function (form) {
+          return Array.from(form.elements).some(function (field) {
+            if (!field.name || field.disabled) return false;
+            if (field.type === "hidden" || field.type === "submit" || field.type === "button") return false;
+            if (field.type === "file") return field.files && field.files.length > 0;
+            if (field.type === "checkbox" || field.type === "radio") return field.checked;
+            return String(field.value || "").trim().length > 0;
+          });
+        });
+      }
+      function clearMainContentDirtyState() {
+        document.querySelectorAll("#main-content form[data-echo-dirty='true']").forEach(function (form) {
+          form.dataset.echoDirty = "false";
+        });
+      }
+      function resetMainContentToHome() {
+        if (mainContentHasDirtyForm()) {
+          const ok = window.confirm("当前页面有未保存的编辑内容，确定要回到首页吗？");
+          if (!ok) return false;
+        }
+        setCreateMenu(false);
+        fetch("{% url 'home' %}", { cache: "no-store", headers: { "HX-Request": "true" } })
+          .then(function (response) { return response.text(); })
+          .then(function (html) {
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            const nextMain = doc.querySelector("#main-content");
+            const currentMain = document.getElementById("main-content");
+            if (!nextMain || !currentMain) {
+              window.location.href = "{% url 'home' %}";
+              return;
+            }
+            currentMain.outerHTML = nextMain.outerHTML;
+            clearMainContentDirtyState();
+            history.pushState({}, "", "{% url 'home' %}");
+          })
+          .catch(function () {
+            window.location.href = "{% url 'home' %}";
+          });
+        return false;
+      }
+      function applyTheme(theme) {
+        root.classList.toggle("dark", theme !== "light");
+        localStorage.setItem("echo_theme", theme !== "light" ? "dark" : "light");
+      }
+      function clampNumber(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+      function updateShellLayout() {
+        if (!shell || !leftSidebar || !contextPanel) return;
+        const viewportWidth = document.documentElement.clientWidth;
+        const sidebarCollapsed = localStorage.getItem("echo_sidebar_collapsed") === "true";
+        const contextWanted = localStorage.getItem("echo_context_panel_open") !== "false";
+        const showLeft = viewportWidth >= 760;
+        const leftWidth = showLeft
+          ? (sidebarCollapsed ? 76 : Math.round(clampNumber(viewportWidth * 0.22, 248, 320)))
+          : 0;
+        const roomAfterLeft = viewportWidth - leftWidth;
+        const rightCandidate = Math.round(clampNumber(viewportWidth * 0.2, 248, 360));
+        const showContext = contextWanted && showLeft && roomAfterLeft - rightCandidate >= 560;
+        const rightWidth = showContext ? rightCandidate : 0;
+        shell.style.setProperty("--left-width", leftWidth + "px");
+        shell.style.setProperty("--right-width", rightWidth + "px");
+        shell.style.gridTemplateColumns = [
+          showLeft ? "var(--left-width)" : "",
+          "minmax(0, 1fr)",
+          showContext ? "var(--right-width)" : "",
+        ].filter(Boolean).join(" ");
+        shell.classList.toggle("layout-has-left", showLeft);
+        shell.classList.toggle("layout-no-left", !showLeft);
+        shell.classList.toggle("layout-has-context", showContext);
+        shell.classList.toggle("layout-no-context", !showContext);
+        shell.classList.toggle("context-closed", !showContext);
+        leftSidebar.classList.toggle("is-compact", showLeft && !sidebarCollapsed && leftWidth < 280);
+        contextPanel.style.display = showContext ? "" : "none";
+        openContext.setAttribute("aria-pressed", showContext ? "true" : "false");
+        openContext.classList.toggle("text-brand", showContext);
+      }
+      function applySidebar(collapsed) {
+        leftSidebar.classList.toggle("is-collapsed", collapsed);
+        if (libraryTrigger) libraryTrigger.setAttribute("aria-label", collapsed ? "展开音乐库" : "音乐库");
+        localStorage.setItem("echo_sidebar_collapsed", collapsed ? "true" : "false");
+        updateShellLayout();
+        queueTopSearchLayout();
+      }
+      function setCreateMenu(open) {
+        if (!libraryCreate || !libraryCreateButton) return;
+        libraryCreate.classList.toggle("is-open", open);
+        leftSidebar.classList.toggle("create-open", open);
+        libraryCreateButton.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) positionCreateMenu();
+      }
+      function positionCreateMenu() {
+        if (!libraryCreateButton || !libraryCreateMenu) return;
+        const gap = 12;
+        const margin = 12;
+        const preferredWidth = 420;
+        const buttonRect = libraryCreateButton.getBoundingClientRect();
+        const sidebarRect = leftSidebar.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const menuWidth = Math.min(preferredWidth, Math.max(280, viewportWidth - margin * 2));
+        const isCollapsed = leftSidebar.classList.contains("is-collapsed");
+        const rightOpeningLeft = (isCollapsed ? sidebarRect.right : buttonRect.right) + gap;
+        const rightOpeningFits = rightOpeningLeft + menuWidth <= viewportWidth - margin;
+        const left = rightOpeningFits
+          ? rightOpeningLeft
+          : Math.max(margin, Math.min(sidebarRect.right - menuWidth, viewportWidth - menuWidth - margin));
+        libraryCreateMenu.style.setProperty("--create-menu-left", Math.round(left) + "px");
+        libraryCreateMenu.style.setProperty("--create-menu-top", Math.round(buttonRect.bottom + gap) + "px");
+        libraryCreateMenu.style.setProperty("--create-menu-width", Math.round(menuWidth) + "px");
+      }
+      function applyContext(open) {
+        localStorage.setItem("echo_context_panel_open", open ? "true" : "false");
+        updateShellLayout();
+        queueTopSearchLayout();
+      }
+      function updateTopSearchLayout() {
+        if (!topBar || !topSearchWrap) return;
+        const gap = 16;
+        const barRect = topBar.getBoundingClientRect();
+        const logoRect = topBar.firstElementChild.getBoundingClientRect();
+        const actionsRect = topBar.lastElementChild.getBoundingClientRect();
+        const wrapLeft = barRect.left + topSearchWrap.offsetLeft;
+        const wrapWidth = topSearchWrap.offsetWidth;
+        const clusterWidth = Math.min(720, wrapWidth);
+        const centerX = barRect.left + barRect.width / 2;
+        const wrapCenterX = wrapLeft + wrapWidth / 2;
+        const desiredShift = centerX - wrapCenterX;
+        const minShift = logoRect.right + gap - (wrapCenterX - clusterWidth / 2);
+        const maxShift = actionsRect.left - gap - (wrapCenterX + clusterWidth / 2);
+        const shift = minShift <= maxShift ? clampNumber(desiredShift, minShift, maxShift) : 0;
+        topSearchWrap.style.setProperty("--top-search-shift", Math.round(shift) + "px");
+      }
+      function queueTopSearchLayout() {
+        requestAnimationFrame(function () {
+          updateTopSearchLayout();
+          requestAnimationFrame(updateTopSearchLayout);
+        });
+      }
+      function updatePlaybackLayout() {
+        if (!playbackBar || !playbackControls) return;
+        const controlsWidth = playbackControls.offsetWidth;
+        const viewportWidth = document.documentElement.clientWidth;
+        const progressPadding = viewportWidth < 640 ? 12 : 88;
+        const progressWidth = clampNumber(Math.round(controlsWidth - progressPadding), 128, 520);
+        const actionWidth = playbackActions ? playbackActions.offsetWidth : 0;
+        const volumeWidth = clampNumber(Math.round(actionWidth * 0.32), 56, 128);
+        playbackBar.style.setProperty("--player-progress-width", progressWidth + "px");
+        playbackBar.style.setProperty("--player-volume-width", volumeWidth + "px");
+      }
+      function queuePlaybackLayout() {
+        requestAnimationFrame(function () {
+          updatePlaybackLayout();
+          requestAnimationFrame(updatePlaybackLayout);
+        });
+      }
+      function playTrack(track) {
+        title.textContent = track.title || "未命名音频";
+        artist.textContent = track.artist || "Echo 用户";
+        sideTitle.textContent = title.textContent;
+        sideArtist.textContent = artist.textContent;
+        setCover(cover, track.cover || "summer", track.coverUrl || "");
+        setCover(sideCover, track.cover || "summer", track.coverUrl || "");
+        setTrackResourceLinks(track.id);
+        refreshActiveResource(track.id);
+        if (track.src) {
+          audio.src = track.src;
+          audio.play().catch(function () {});
+        }
+        setPlaying(true);
+      }
+
+      document.addEventListener("click", function (event) {
+        const homeTrigger = event.target.closest("[data-home-nav]");
+        if (homeTrigger) {
+          window.EchoHome(event);
+        }
+      }, true);
+      window.EchoHome = function (event) {
+        if (event) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+        return resetMainContentToHome();
       };
 
       applyTheme(localStorage.getItem("echo_theme") || "dark");
       applySidebar(localStorage.getItem("echo_sidebar_collapsed") === "true");
       applyContext(localStorage.getItem("echo_context_panel_open") !== "false");
+      queueTopSearchLayout();
+      queuePlaybackLayout();
+      setTrackResourceLinks(localStorage.getItem("echo_current_track_id"));
       audio.volume = Number(localStorage.getItem("echo_player_volume") || "0.72");
-      volume.value = audio.volume;
-
-      themeToggle.addEventListener("click", function () {
-        applyTheme(root.classList.contains("dark") ? "light" : "dark");
+      if (volume) volume.value = audio.volume;
+      document.body.addEventListener("input", function (event) {
+        const form = event.target.closest("#main-content form");
+        if (form) form.dataset.echoDirty = "true";
       });
+      document.body.addEventListener("change", function (event) {
+        const form = event.target.closest("#main-content form");
+        if (form) form.dataset.echoDirty = "true";
+      });
+      document.body.addEventListener("submit", function (event) {
+        const form = event.target.closest("#main-content form");
+        if (form) form.dataset.echoDirty = "false";
+      });
+      themeToggle.addEventListener("click", function () { applyTheme(root.classList.contains("dark") ? "light" : "dark"); });
       sidebarToggles.forEach(function (button) {
-        button.addEventListener("click", function () {
-          applySidebar(localStorage.getItem("echo_sidebar_collapsed") !== "true");
+        button.addEventListener("click", function () { applySidebar(localStorage.getItem("echo_sidebar_collapsed") !== "true"); });
+      });
+      if (libraryTrigger) {
+        libraryTrigger.addEventListener("click", function () {
+          if (leftSidebar.classList.contains("is-collapsed")) applySidebar(false);
         });
+      }
+      if (libraryCreateButton) {
+        libraryCreateButton.addEventListener("click", function (event) {
+          event.stopPropagation();
+          setCreateMenu(!libraryCreate.classList.contains("is-open"));
+        });
+      }
+      window.addEventListener("resize", function () {
+        updateShellLayout();
+        if (libraryCreate && libraryCreate.classList.contains("is-open")) positionCreateMenu();
+        queueTopSearchLayout();
+        queuePlaybackLayout();
+      });
+      document.addEventListener("click", function (event) {
+        if (libraryCreate && !libraryCreate.contains(event.target)) setCreateMenu(false);
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") setCreateMenu(false);
       });
       closeContext.addEventListener("click", function () { applyContext(false); });
-      openContext.addEventListener("click", function () {
-        applyContext(localStorage.getItem("echo_context_panel_open") === "false");
-      });
-      volume.addEventListener("input", function () {
-        audio.volume = Number(volume.value);
-        localStorage.setItem("echo_player_volume", volume.value);
-      });
+      openContext.addEventListener("click", function () { applyContext(localStorage.getItem("echo_context_panel_open") === "false"); });
+      if (volume) {
+        volume.addEventListener("input", function () {
+          audio.volume = Number(volume.value);
+          localStorage.setItem("echo_player_volume", volume.value);
+        });
+      }
       toggle.addEventListener("click", function () {
-        if (audio.src) {
-          audio.paused ? audio.play() : audio.pause();
-        }
-        setPlaying(audio.src ? !audio.paused : true);
+        if (!audio.src) return;
+        audio.paused ? audio.play() : audio.pause();
       });
       progress.addEventListener("input", function () {
         if (audio.duration) audio.currentTime = Number(progress.value);
       });
-      audio.addEventListener("timeupdate", function () {
-        if (!Number.isNaN(audio.duration)) {
+      audio.addEventListener("loadedmetadata", function () {
+        if (Number.isFinite(audio.duration)) {
           progress.max = Math.floor(audio.duration);
+          duration.textContent = formatTime(audio.duration);
+        }
+      });
+      audio.addEventListener("timeupdate", function () {
+        if (Number.isFinite(audio.duration)) {
           progress.value = Math.floor(audio.currentTime);
+          current.textContent = formatTime(audio.currentTime);
         }
       });
       audio.addEventListener("play", function () { setPlaying(true); });
       audio.addEventListener("pause", function () { setPlaying(false); });
-
-      window.dispatchCustomEvent = function (name, detail) {
-        window.dispatchEvent(new CustomEvent(name, { detail: detail }));
-      };
-
-      window.EchoPlayer = {
-        play: function (track) {
-          title.textContent = track.title || "未命名音频";
-          artist.textContent = track.artist || "Echo 用户";
-          setCover(track.cover || "summer");
-          if (track.src) {
-            audio.src = track.src;
-            audio.play();
-          }
-          setPlaying(true);
-        },
-      };
-
-      window.addEventListener("echo:play", function (event) {
-        window.EchoPlayer.play(event.detail || {});
-      });
-
       document.body.addEventListener("click", function (event) {
         const trigger = event.target.closest("[data-echo-track]");
         if (!trigger) return;
-        window.dispatchCustomEvent("echo:play", {
+        playTrack({
           src: trigger.dataset.src,
           id: trigger.dataset.id,
           title: trigger.dataset.title,
           artist: trigger.dataset.artist,
           cover: trigger.dataset.cover,
+          coverUrl: trigger.dataset.coverUrl,
         });
       });
     })();

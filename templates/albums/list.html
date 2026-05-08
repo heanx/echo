@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}专辑 - Echo{% endblock %}
+
+{% block main %}
+<section>
+  <div class="mb-5">
+    <h1 class="text-3xl font-black">专辑与合集</h1>
+    <p class="mt-1 text-sm text-zinc-500">用于首页和列表展示的 Echo 专辑数据。</p>
+  </div>
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+    {% for album in albums %}
+      {% include "components/album_card.html" with album=album %}
+    {% empty %}
+      <div class="col-span-full rounded-lg bg-zinc-100 p-6 text-sm text-zinc-500 dark:bg-zinc-950">还没有专辑。运行 python manage.py seed_demo 创建测试数据。</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

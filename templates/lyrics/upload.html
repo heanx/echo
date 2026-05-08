@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}上传歌词 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-3xl pb-10">
+  <h1 class="text-3xl font-black">上传歌词</h1>
+  <p class="mt-2 text-sm text-zinc-500">支持粘贴 LRC 或纯文本。保存后会生成逐行歌词数据。</p>
+
+  <form method="post" enctype="multipart/form-data" class="mt-6 space-y-5 rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+    {% csrf_token %}
+    <div>
+      <label class="mb-2 block text-sm font-semibold" for="track">音频作品</label>
+      <select id="track" name="track" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-zinc-950" required>
+        {% for track in tracks %}
+          <option value="{{ track.id }}" {% if selected_track and selected_track.id == track.id %}selected{% endif %}>{{ track.title }} - {{ track.artist|default:"Echo 用户" }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label class="mb-2 block text-sm font-semibold" for="language">语言</label>
+        <input id="language" name="language" value="zh-Hans" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-zinc-950">
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-semibold" for="kind">类型</label>
+        <select id="kind" name="kind" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-zinc-950">
+          <option value="original">原文</option>
+          <option value="translation">翻译</option>
+          <option value="romanized">罗马音</option>
+          <option value="word_by_word">逐词</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <label class="mb-2 block text-sm font-semibold" for="source_file">歌词文件</label>
+      <input id="source_file" name="source_file" type="file" accept=".lrc,.txt" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+    </div>
+    <div>
+      <label class="mb-2 block text-sm font-semibold" for="raw_text">歌词文本</label>
+      <textarea id="raw_text" name="raw_text" rows="10" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-zinc-950" placeholder="[00:12.00] 我在回声里听见一束光"></textarea>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="submit" class="rounded-lg bg-brand px-5 py-3 font-bold text-white hover:bg-indigo-500">保存歌词</button>
+      <a href="{% url 'lyrics' %}" class="rounded-lg px-5 py-3 font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900">取消</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

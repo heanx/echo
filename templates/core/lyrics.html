@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}歌词 - Echo{% endblock %}
+
+{% block main %}
+<section class="lyrics-panel -m-4 min-h-full rounded-lg px-6 py-7 text-white sm:-m-6 sm:px-10 sm:py-10" data-echo-resource="lyrics">
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <p class="text-sm font-semibold uppercase tracking-wide text-white/70">Lyrics</p>
+      <h1 class="mt-2 truncate text-3xl font-black">{{ track.title|default:"等待播放" }}</h1>
+      <p class="mt-1 truncate text-white/75">{{ track.artist|default:"Echo 用户" }}</p>
+    </div>
+    <a href="{% url 'home' %}"
+       class="rounded-full bg-white/14 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/22"
+       hx-get="{% url 'home' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
+      返回首页
+    </a>
+  </div>
+
+  <div class="mt-8 max-w-4xl space-y-7 pb-16">
+    {% for line in lyrics_lines %}
+      <p class="{% if forloop.counter == 4 %}text-white{% else %}text-white/55{% endif %} group flex gap-5 text-3xl font-black leading-tight sm:text-5xl">
+        <span class="mt-2 w-12 shrink-0 text-xs font-bold text-white/40 sm:mt-4">{{ line.time }}</span>
+        <span>{{ line.text }}</span>
+      </p>
+    {% empty %}
+      <div class="rounded-lg bg-white/10 p-5 text-white/75">
+        还没有歌词。可以先运行 seed_demo，或从上传歌词页录入 LRC/纯文本。
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
