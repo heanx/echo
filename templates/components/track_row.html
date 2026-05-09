@@ -20,7 +20,7 @@
   </div>
 
   <span class="waveform hidden h-8 opacity-70 md:block"></span>
-  <span class="text-sm text-zinc-500">{{ track.plays|default:0 }} 播放</span>
+  <span class="text-sm text-zinc-500"><span data-track-plays="{{ track.id }}">{{ track.plays|default:0 }}</span> 播放</span>
   <span class="hidden text-sm text-zinc-500 md:block">{{ track.likes|default:0 }} 喜欢</span>
   <a href="{% url 'tracks:detail' track.id %}" class="text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white" aria-label="查看详情">
     <span aria-hidden="true">...</span>

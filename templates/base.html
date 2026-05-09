@@ -334,7 +334,9 @@
     {
       "homeUrl": "{% url 'home' %}",
       "lyricsUrl": "{% url 'lyrics' %}",
-      "commentsUrl": "{% url 'comments' %}"
+      "commentsUrl": "{% url 'comments' %}",
+      "trackPlayUrlTemplate": "/tracks/__track_id__/play/",
+      "csrfToken": "{{ csrf_token }}"
     }
   </script>
   <script>

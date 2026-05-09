@@ -27,7 +27,7 @@
     <h1 class="mt-2 text-4xl font-black">{{ track.title }}</h1>
     <p class="mt-3 text-lg text-zinc-500">{{ track.artist|default:"Echo 用户" }}</p>
     <div class="mt-6 flex flex-wrap gap-3 text-sm text-zinc-500">
-      <span>{{ track.plays }} 次播放</span>
+      <span><span data-track-plays="{{ track.id }}">{{ track.plays }}</span> 次播放</span>
       <span>{{ track.likes }} 次喜欢</span>
       <span>{{ track.created_at|date:"Y-m-d H:i" }}</span>
     </div>

@@ -41,7 +41,7 @@ class Track(models.Model):
     def audio_url(self):
         if self.audio_file:
             return self.audio_file.url
-        return "/static/demo/demo-audio.mp3"
+        return "/static/demo/demo-audio.wav"
 
     @property
     def cover_url(self):

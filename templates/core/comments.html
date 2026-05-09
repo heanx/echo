@@ -13,9 +13,27 @@
       </p>
     </div>
     <div class="flex rounded-full bg-zinc-100 p-1 text-sm font-bold dark:bg-zinc-950">
-      <a href="{% url 'comments' %}?track={{ track.id }}&sort=hot" class="rounded-full px-4 py-2 {% if sort == 'hot' and filter != 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">热门</a>
-      <a href="{% url 'comments' %}?track={{ track.id }}&sort=new" class="rounded-full px-4 py-2 {% if sort == 'new' and filter != 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">最新</a>
-      <a href="{% url 'comments' %}?track={{ track.id }}&filter=questions" class="rounded-full px-4 py-2 {% if filter == 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">问题</a>
+      <a href="{% url 'comments' %}?track={{ track.id }}&sort=hot"
+         hx-get="{% url 'comments' %}?track={{ track.id }}&sort=hot"
+         hx-select="#main-content"
+         hx-target="#main-content"
+         hx-swap="outerHTML"
+         hx-push-url="true"
+         class="rounded-full px-4 py-2 {% if sort == 'hot' and filter != 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">热门</a>
+      <a href="{% url 'comments' %}?track={{ track.id }}&sort=new"
+         hx-get="{% url 'comments' %}?track={{ track.id }}&sort=new"
+         hx-select="#main-content"
+         hx-target="#main-content"
+         hx-swap="outerHTML"
+         hx-push-url="true"
+         class="rounded-full px-4 py-2 {% if sort == 'new' and filter != 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">最新</a>
+      <a href="{% url 'comments' %}?track={{ track.id }}&filter=questions"
+         hx-get="{% url 'comments' %}?track={{ track.id }}&filter=questions"
+         hx-select="#main-content"
+         hx-target="#main-content"
+         hx-swap="outerHTML"
+         hx-push-url="true"
+         class="rounded-full px-4 py-2 {% if filter == 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">问题</a>
     </div>
   </div>
 

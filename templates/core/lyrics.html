@@ -17,15 +17,23 @@
     </a>
   </div>
 
-  <div class="mt-8 max-w-4xl space-y-7 pb-16">
+  <div class="lyrics-lines mt-8 max-w-4xl space-y-7 pb-16">
     {% for line in lyrics_lines %}
-      <p class="{% if forloop.counter == 4 %}text-white{% else %}text-white/55{% endif %} group flex gap-5 text-3xl font-black leading-tight sm:text-5xl">
-        <span class="mt-2 w-12 shrink-0 text-xs font-bold text-white/40 sm:mt-4">{{ line.time }}</span>
+      <p class="lyrics-line group flex gap-5 text-3xl font-black leading-tight text-white/45 sm:text-5xl"
+         data-lyric-line
+         data-start-ms="{{ line.start_ms }}"
+         data-position="{{ line.position }}">
         <span>{{ line.text }}</span>
       </p>
     {% empty %}
       <div class="rounded-lg bg-white/10 p-5 text-white/75">
-        还没有歌词。可以先运行 seed_demo，或从上传歌词页录入 LRC/纯文本。
+        {% if lyrics_set.status == "instrumental" %}
+          这首作品已标记为无歌词的纯音乐。
+        {% elif lyrics_set.status == "pending" %}
+          这首作品暂无歌词，之后可以从上传歌词页补充。
+        {% else %}
+          还没有歌词。可以先运行 seed_demo，或从上传歌词页录入 LRC/纯文本。
+        {% endif %}
       </div>
     {% endfor %}
   </div>

@@ -461,3 +461,60 @@ Expires: 0
 ```text
 /comments/?track=<current_track_id>
 ```
+
+## 12. 2026-05-10 数据与接口补充
+
+### Track 播放量
+
+播放量上报接口：
+
+```text
+POST /tracks/<track_id>/play/
+```
+
+实现位于：
+
+```text
+tracks.views.record_play
+```
+
+写入策略继续使用 `F("plays") + 1`，避免并发请求覆盖：
+
+```python
+Track.objects.filter(pk=pk, status=Track.STATUS_PUBLISHED).update(plays=F("plays") + 1)
+```
+
+前端播放状态中的同一首歌只上报一次，切歌后重置上报 key。
+
+### Lyrics 状态
+
+`lyrics.TrackLyrics.status` 已用于区分：
+
+```text
+available      有歌词
+instrumental   无歌词的纯音乐
+pending        暂无歌词
+```
+
+`parse_raw_text()` 对非 `available` 直接返回，不生成 `TrackLyricLine`。因此数据库里 `instrumental` / `pending` 歌词版本可以存在，但不应有歌词行。
+
+### 评论/歌词 Query 参数约定
+
+数据库层和后端视图只按请求里的 `track` 参数解析当前资源：
+
+```text
+/lyrics/?track=<track_id>
+/comments/?track=<track_id>
+```
+
+前端必须保证底部按钮发出的 `track` 是当前播放 track。不要让中部页面 URL 的旧 `track` 覆盖全局播放状态。
+
+### 上传格式
+
+当前 `Track.audio_file` 上传只支持普通音频文件：
+
+```text
+.mp3 .wav .ogg .m4a .aac .flac .webm
+```
+
+`.ncm` 没有落库策略，也没有转换依赖。数据库文档中不要把 `.ncm` 记为已支持格式。

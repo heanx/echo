@@ -194,3 +194,45 @@ line.text
 - 给回复按钮新增 `parent` 评论提交。
 - 给歌词页增加播放器 `timeupdate` 高亮当前行。
 - 支持 `.srt` 解析和翻译歌词并排展示。
+
+## 2026-05-10 最新补充
+
+### 底部按钮 Track 同步
+
+评论和歌词页仍然以 URL query 参数为后端契约：
+
+```text
+/lyrics/?track=<track_id>
+/comments/?track=<track_id>
+```
+
+前端壳已经修正底部 `#lyrics-nav`、`#comments-nav` 的同步逻辑：
+
+- `setCurrentTrack(trackId)` 会更新按钮 `hx-get` / `href`。
+- 点击底部歌词/评论时优先使用当前播放 `currentTrackId`，而不是当前页面 URL。
+- 当前页面 URL 的 `track` 只作为兜底，避免旧页面 track 覆盖正在播放的歌曲。
+
+### 歌词高亮与跳转
+
+歌词模板继续输出：
+
+```text
+.lyrics-line[data-start-ms]
+```
+
+前端播放器会根据 `audio.currentTime` 给歌词行添加：
+
+```text
+lyric-dist-0
+lyric-dist-1
+lyric-dist-2
+lyric-dist-3
+lyric-dist-4
+lyric-dist-far
+```
+
+点击歌词行会 seek 到该行 `start_ms`。拖动底部进度条时只预览歌词高亮，松手后才真正 seek，避免歌词自动滚动影响进度条输入。
+
+### 评论缓存
+
+`core.views.comments()` 已设置 no-cache 响应头。切歌后如果中部正处于评论页，前端会重新请求 `/comments/?track=<current_track_id>`，后端会重新查库。

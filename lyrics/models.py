@@ -4,6 +4,15 @@ from django.db import models
 
 
 class TrackLyrics(models.Model):
+    STATUS_AVAILABLE = "available"
+    STATUS_INSTRUMENTAL = "instrumental"
+    STATUS_PENDING = "pending"
+    STATUS_CHOICES = [
+        (STATUS_AVAILABLE, "有歌词"),
+        (STATUS_INSTRUMENTAL, "无歌词的纯音乐"),
+        (STATUS_PENDING, "暂无歌词"),
+    ]
+
     KIND_ORIGINAL = "original"
     KIND_TRANSLATION = "translation"
     KIND_ROMANIZED = "romanized"
@@ -20,6 +29,7 @@ class TrackLyrics(models.Model):
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_ORIGINAL)
     source_file = models.FileField(upload_to="tracks/lyrics/", blank=True, null=True)
     raw_text = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_AVAILABLE)
     parser_version = models.CharField(max_length=40, blank=True)
     is_primary = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -44,6 +54,8 @@ class TrackLyrics(models.Model):
 
     def parse_raw_text(self):
         self.lines.all().delete()
+        if self.status != self.STATUS_AVAILABLE:
+            return
         for position, (start_ms, text) in enumerate(parse_lrc_or_text(self.raw_text), start=1):
             TrackLyricLine.objects.create(lyrics=self, start_ms=start_ms, text=text, position=position)
 

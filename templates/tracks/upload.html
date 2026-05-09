@@ -24,23 +24,22 @@
       <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <div class="mb-5">
           <h2 class="text-lg font-black">作品信息</h2>
-          <p class="mt-1 text-sm text-zinc-500">标题是必填项，其余字段可后续在后台继续补充。</p>
+          <p class="mt-1 text-sm text-zinc-500">选择 MP3/M4A 等带标签的音频后，会自动填入标题和作者；你仍然可以手动修改。</p>
         </div>
         <div class="space-y-5">
           <div>
             <label class="mb-2 block text-sm font-semibold" for="title">标题</label>
-            <input id="title" name="title" value="{{ form_data.title|default:'' }}" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]" required>
+            <input id="title" name="title" value="{{ form_data.title|default:'' }}" placeholder="可由音频文件自动识别" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
           </div>
           <div class="grid gap-5 sm:grid-cols-2">
             <div>
               <label class="mb-2 block text-sm font-semibold" for="artist">作者</label>
-              <input id="artist" name="artist" value="{{ form_data.artist|default:'' }}" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+              <input id="artist" name="artist" value="{{ form_data.artist|default:'' }}" placeholder="可由音频文件自动识别" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
             </div>
             <div>
               <label class="mb-2 block text-sm font-semibold" for="status">发布状态</label>
               <select id="status" name="status" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
                 <option value="published">直接发布</option>
-                <option value="draft">保存草稿</option>
               </select>
             </div>
           </div>
@@ -54,16 +53,17 @@
       <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <div class="mb-5">
           <h2 class="text-lg font-black">媒体文件</h2>
-          <p class="mt-1 text-sm text-zinc-500">没有音频文件时，播放器会继续使用 demo 音频路径，便于课程展示。</p>
+          <p class="mt-1 text-sm text-zinc-500">上传真实音频后会保存到媒体目录，并直接进入 Echo 播放器。</p>
         </div>
         <div class="grid gap-5 sm:grid-cols-2">
           <div>
             <label class="mb-2 block text-sm font-semibold" for="audio_file">音频文件</label>
-            <input id="audio_file" name="audio_file" type="file" accept="audio/*" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+            <input id="audio_file" name="audio_file" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]" required>
+            <p id="audio-file-hint" class="mt-2 text-xs text-zinc-500">支持 MP3、WAV、OGG、M4A、AAC、FLAC、WEBM，最大 50MB。</p>
           </div>
           <div>
             <label class="mb-2 block text-sm font-semibold" for="duration_ms">时长毫秒</label>
-            <input id="duration_ms" name="duration_ms" type="number" min="0" step="1000" placeholder="例如 222000" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+            <input id="duration_ms" name="duration_ms" type="number" min="0" step="1000" placeholder="选择音频后自动读取" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
           </div>
         </div>
       </section>
@@ -71,9 +71,17 @@
       <section class="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <div class="mb-5">
           <h2 class="text-lg font-black">歌词</h2>
-          <p class="mt-1 text-sm text-zinc-500">支持 LRC 时间戳，也支持纯文本逐行解析。留空则只创建音乐作品。</p>
+          <p class="mt-1 text-sm text-zinc-500">支持 LRC 时间戳、纯文本逐行解析，也可以标记为纯音乐或暂无歌词。</p>
         </div>
-        <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label class="mb-2 block text-sm font-semibold" for="lyrics_status">歌词状态</label>
+          <select id="lyrics_status" name="lyrics_status" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
+            {% for value, label in lyric_statuses %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lyrics-inputs mt-5 grid gap-5 sm:grid-cols-2">
           <div>
             <label class="mb-2 block text-sm font-semibold" for="lyrics_language">语言</label>
             <input id="lyrics_language" name="lyrics_language" value="zh-Hans" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]">
@@ -87,13 +95,47 @@
             </select>
           </div>
         </div>
-        <div class="mt-5">
+        <div class="lyrics-inputs mt-5">
           <label class="mb-2 block text-sm font-semibold" for="lyrics_file">歌词文件</label>
           <input id="lyrics_file" name="lyrics_file" type="file" accept=".lrc,.txt" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+          <p id="lyrics-file-hint" class="mt-2 text-xs text-zinc-500">选择 .lrc 或 .txt 后会自动载入下方编辑器。</p>
         </div>
-        <div class="mt-5">
-          <label class="mb-2 block text-sm font-semibold" for="lyrics_raw_text">歌词文本</label>
-          <textarea id="lyrics_raw_text" name="lyrics_raw_text" rows="8" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]" placeholder="[00:12.00] 我在回声里听见一束光&#10;[00:26.00] 它穿过城市的雾和夜航"></textarea>
+        <div class="lyrics-inputs mt-5">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <label class="block text-sm font-semibold" for="lyrics_raw_text">歌词编辑器</label>
+              <p class="mt-1 text-xs text-zinc-500">时间和歌词分列编辑；保存时会自动合成为 LRC/纯文本。</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button id="lyrics-add-row" type="button" class="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-bold text-zinc-600 transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:text-zinc-300">新增行</button>
+              <button id="lyrics-fill-current-time" type="button" class="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-bold text-zinc-600 transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:text-zinc-300">填入当前时间</button>
+            </div>
+          </div>
+
+          <div class="mt-4 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#121212]">
+            <div class="grid grid-cols-[112px_minmax(0,1fr)_40px] gap-2 border-b border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-500 dark:border-zinc-800">
+              <span>时间</span>
+              <span>歌词</span>
+              <span></span>
+            </div>
+            <div id="lyrics-editor-rows" class="max-h-[420px] overflow-y-auto p-3 echo-scrollbar"></div>
+          </div>
+
+          <div class="mt-4 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-[#121212]">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold">预听核对</p>
+                <p id="lyrics-preview-hint" class="mt-1 text-xs text-zinc-500">选择音频后可预听，并把当前播放时间填入选中的歌词行。</p>
+              </div>
+              <span id="lyrics-preview-time" class="text-xs font-bold text-zinc-500">00:00</span>
+            </div>
+            <audio id="lyrics-preview-audio" class="mt-3 w-full" controls preload="metadata"></audio>
+          </div>
+
+          <details class="mt-4">
+            <summary class="cursor-pointer text-sm font-semibold text-zinc-500 transition hover:text-brand">查看原始歌词文本</summary>
+            <textarea id="lyrics_raw_text" name="lyrics_raw_text" rows="8" class="mt-3 w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-brand dark:border-zinc-700 dark:bg-[#121212]" placeholder="[00:12.00] 我在回声里听见一束光&#10;[00:26.00] 它穿过城市的雾和夜航"></textarea>
+          </details>
         </div>
       </section>
     </div>
@@ -112,7 +154,8 @@
         </div>
         <div class="mt-5">
           <label class="mb-2 block text-sm font-semibold" for="cover_image">封面图片</label>
-          <input id="cover_image" name="cover_image" type="file" accept="image/*" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+          <input id="cover_image" name="cover_image" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif" class="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+          <p class="mt-2 text-xs text-zinc-500">可选，最大 8MB。</p>
         </div>
       </section>
 
@@ -136,12 +179,290 @@
   (function () {
     const themeSelect = document.getElementById("cover_theme");
     const preview = document.getElementById("upload-cover-preview");
+    const audioInput = document.getElementById("audio_file");
+    const titleInput = document.getElementById("title");
+    const artistInput = document.getElementById("artist");
+    const descriptionInput = document.getElementById("description");
+    const durationInput = document.getElementById("duration_ms");
+    const audioHint = document.getElementById("audio-file-hint");
+    const coverInput = document.getElementById("cover_image");
+    const lyricsStatus = document.getElementById("lyrics_status");
+    const lyricsInputs = document.querySelectorAll(".lyrics-inputs");
+    const lyricsFileInput = document.getElementById("lyrics_file");
+    const lyricsFileHint = document.getElementById("lyrics-file-hint");
+    const lyricsRawText = document.getElementById("lyrics_raw_text");
+    const lyricsEditorRows = document.getElementById("lyrics-editor-rows");
+    const lyricsAddRow = document.getElementById("lyrics-add-row");
+    const lyricsFillCurrentTime = document.getElementById("lyrics-fill-current-time");
+    const lyricsPreviewAudio = document.getElementById("lyrics-preview-audio");
+    const lyricsPreviewHint = document.getElementById("lyrics-preview-hint");
+    const lyricsPreviewTime = document.getElementById("lyrics-preview-time");
     const coverClasses = ["cover-summer", "cover-city", "cover-eclipse", "cover-sea", "cover-ocean", "cover-signal", "cover-sunset", "cover-forest", "cover-night"];
+    const lrcLinePattern = /^\[(\d{1,2}:\d{2}(?:\.\d{1,3})?)\]\s*(.*)$/;
+    let selectedLyricsRow = null;
+    let lyricsPreviewUrl = "";
+    function canAutofill(input) {
+      return input && (!input.value.trim() || input.dataset.autofilled === "true");
+    }
+    function markManualEdit(event) {
+      event.currentTarget.dataset.autofilled = "false";
+    }
+    function textFromFrame(payload) {
+      if (!payload || !payload.byteLength) return "";
+      const bytes = new Uint8Array(payload);
+      const encoding = bytes[0];
+      const body = bytes.slice(1);
+      try {
+        if (encoding === 1) return new TextDecoder("utf-16").decode(body).replace(/\0/g, "").trim();
+        if (encoding === 2) return new TextDecoder("utf-16be").decode(body).replace(/\0/g, "").trim();
+        if (encoding === 3) return new TextDecoder("utf-8").decode(body).replace(/\0/g, "").trim();
+        return new TextDecoder("latin1").decode(body).replace(/\0/g, "").trim();
+      } catch (error) {
+        return "";
+      }
+    }
+    function syncsafe(bytes) {
+      return ((bytes[0] & 0x7F) << 21) | ((bytes[1] & 0x7F) << 14) | ((bytes[2] & 0x7F) << 7) | (bytes[3] & 0x7F);
+    }
+    function formatSeconds(value) {
+      if (!Number.isFinite(value)) return "00:00";
+      const minutes = Math.floor(value / 60);
+      const seconds = Math.floor(value % 60).toString().padStart(2, "0");
+      const hundredths = Math.floor((value % 1) * 100).toString().padStart(2, "0");
+      return minutes.toString().padStart(2, "0") + ":" + seconds + "." + hundredths;
+    }
+    function normalizeLyricsTime(value) {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return "";
+      const match = trimmed.match(/^(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?$/);
+      if (!match) return trimmed;
+      const minutes = match[1].padStart(2, "0");
+      const seconds = match[2].padStart(2, "0");
+      const fraction = match[3] ? "." + match[3].padEnd(2, "0").slice(0, 2) : "";
+      return minutes + ":" + seconds + fraction;
+    }
+    function parseLyricsText(rawText) {
+      return String(rawText || "")
+        .split(/\r?\n/)
+        .map(function (line) {
+          const trimmed = line.trim();
+          if (!trimmed) return null;
+          const match = trimmed.match(lrcLinePattern);
+          if (match) return { time: match[1], text: match[2] || "" };
+          return { time: "", text: trimmed };
+        })
+        .filter(Boolean);
+    }
+    function serializeLyricsRows() {
+      if (!lyricsEditorRows) return "";
+      return Array.from(lyricsEditorRows.querySelectorAll("[data-lyrics-row]"))
+        .map(function (row) {
+          const time = normalizeLyricsTime(row.querySelector("[data-lyrics-time]").value);
+          const text = row.querySelector("[data-lyrics-text]").value.trim();
+          if (!time && !text) return "";
+          return time ? "[" + time + "] " + text : text;
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
+    function syncRawLyricsFromEditor() {
+      if (lyricsRawText) lyricsRawText.value = serializeLyricsRows();
+    }
+    function createLyricsRow(time, text) {
+      const row = document.createElement("div");
+      row.dataset.lyricsRow = "true";
+      row.className = "lyrics-editor-row grid grid-cols-[112px_minmax(0,1fr)_40px] gap-2 py-1";
+
+      const timeInput = document.createElement("input");
+      timeInput.type = "text";
+      timeInput.dataset.lyricsTime = "true";
+      timeInput.placeholder = "00:12.00";
+      timeInput.value = time || "";
+      timeInput.className = "rounded-lg border border-zinc-300 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-brand dark:border-zinc-700 dark:bg-zinc-950";
+
+      const textInput = document.createElement("input");
+      textInput.type = "text";
+      textInput.dataset.lyricsText = "true";
+      textInput.placeholder = "输入歌词";
+      textInput.value = text || "";
+      textInput.className = "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand dark:border-zinc-700 dark:bg-zinc-950";
+
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "rounded-lg text-zinc-400 transition hover:bg-rose-500/10 hover:text-rose-500";
+      removeButton.setAttribute("aria-label", "删除歌词行");
+      removeButton.textContent = "×";
+
+      row.append(timeInput, textInput, removeButton);
+      row.addEventListener("focusin", function () {
+        selectedLyricsRow = row;
+        if (lyricsEditorRows) {
+          lyricsEditorRows.querySelectorAll("[data-lyrics-row]").forEach(function (item) {
+            item.classList.toggle("rounded-lg", item === row);
+            item.classList.toggle("bg-brand/10", item === row);
+          });
+        }
+      });
+      row.addEventListener("input", syncRawLyricsFromEditor);
+      removeButton.addEventListener("click", function () {
+        row.remove();
+        if (selectedLyricsRow === row) selectedLyricsRow = null;
+        syncRawLyricsFromEditor();
+      });
+      return row;
+    }
+    function renderLyricsEditor(rows) {
+      if (!lyricsEditorRows) return;
+      lyricsEditorRows.innerHTML = "";
+      const nextRows = rows.length ? rows : [{ time: "", text: "" }];
+      nextRows.forEach(function (row) {
+        lyricsEditorRows.appendChild(createLyricsRow(row.time, row.text));
+      });
+      selectedLyricsRow = lyricsEditorRows.querySelector("[data-lyrics-row]");
+      syncRawLyricsFromEditor();
+    }
+    function syncEditorFromRawLyrics() {
+      renderLyricsEditor(parseLyricsText(lyricsRawText ? lyricsRawText.value : ""));
+    }
+    async function readId3Metadata(file) {
+      const header = new Uint8Array(await file.slice(0, 10).arrayBuffer());
+      if (header.length < 10 || String.fromCharCode(header[0], header[1], header[2]) !== "ID3") return {};
+      const version = header[3];
+      const size = Math.min(syncsafe(header.slice(6, 10)), 1024 * 1024);
+      const data = new Uint8Array(await file.slice(10, 10 + size).arrayBuffer());
+      const result = {};
+      let offset = 0;
+      while (offset + 10 <= data.length) {
+        const id = String.fromCharCode(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]).replace(/\0/g, "");
+        if (!id) break;
+        const sizeBytes = data.slice(offset + 4, offset + 8);
+        const frameSize = version === 4 ? syncsafe(sizeBytes) : ((sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]);
+        if (frameSize <= 0 || offset + 10 + frameSize > data.length) break;
+        const payload = data.slice(offset + 10, offset + 10 + frameSize);
+        if (id === "TIT2") result.title = textFromFrame(payload);
+        if (id === "TPE1") result.artist = textFromFrame(payload);
+        if (id === "TALB") result.album = textFromFrame(payload);
+        offset += 10 + frameSize;
+      }
+      return result;
+    }
+    [titleInput, artistInput, descriptionInput].forEach(function (input) {
+      if (input) input.addEventListener("input", markManualEdit);
+    });
+    if (lyricsStatus) {
+      function syncLyricsInputs() {
+        const disabled = lyricsStatus.value !== "available";
+        lyricsInputs.forEach(function (group) {
+          group.classList.toggle("opacity-50", disabled);
+          group.querySelectorAll("input, select, textarea").forEach(function (field) {
+            field.disabled = disabled;
+          });
+        });
+      }
+      lyricsStatus.addEventListener("change", syncLyricsInputs);
+      syncLyricsInputs();
+    }
     if (!themeSelect || !preview) return;
     themeSelect.addEventListener("change", function () {
       coverClasses.forEach(function (className) { preview.classList.remove(className); });
+      preview.style.backgroundImage = "";
       preview.classList.add("cover-" + themeSelect.value);
     });
+    if (audioInput && durationInput) {
+      audioInput.addEventListener("change", async function () {
+        const file = audioInput.files && audioInput.files[0];
+        if (!file) return;
+        const metadata = await readId3Metadata(file);
+        if (metadata.title && canAutofill(titleInput)) {
+          titleInput.value = metadata.title;
+          titleInput.dataset.autofilled = "true";
+        }
+        if (metadata.artist && canAutofill(artistInput)) {
+          artistInput.value = metadata.artist;
+          artistInput.dataset.autofilled = "true";
+        }
+        if (metadata.album && canAutofill(descriptionInput)) {
+          descriptionInput.value = "专辑：" + metadata.album;
+          descriptionInput.dataset.autofilled = "true";
+        }
+        const url = URL.createObjectURL(file);
+        if (lyricsPreviewAudio) {
+          if (lyricsPreviewUrl) URL.revokeObjectURL(lyricsPreviewUrl);
+          lyricsPreviewUrl = URL.createObjectURL(file);
+          lyricsPreviewAudio.src = lyricsPreviewUrl;
+          if (lyricsPreviewHint) lyricsPreviewHint.textContent = "正在预听：" + file.name;
+        }
+        const probe = new Audio();
+        probe.preload = "metadata";
+        probe.addEventListener("loadedmetadata", function () {
+          if (Number.isFinite(probe.duration)) {
+            durationInput.value = Math.round(probe.duration * 1000);
+            if (audioHint) audioHint.textContent = file.name + " · " + Math.round(probe.duration) + " 秒";
+          }
+          URL.revokeObjectURL(url);
+        });
+        probe.addEventListener("error", function () {
+          if (audioHint) audioHint.textContent = "无法读取时长，可以保存为 0 或手动填写。";
+          URL.revokeObjectURL(url);
+        });
+        probe.src = url;
+      });
+    }
+    if (lyricsFileInput) {
+      lyricsFileInput.addEventListener("change", function () {
+        const file = lyricsFileInput.files && lyricsFileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.addEventListener("load", function () {
+          const text = String(reader.result || "");
+          if (lyricsRawText) lyricsRawText.value = text;
+          renderLyricsEditor(parseLyricsText(text));
+          if (lyricsFileHint) lyricsFileHint.textContent = file.name + " 已载入，可在下方继续校对。";
+        });
+        reader.addEventListener("error", function () {
+          if (lyricsFileHint) lyricsFileHint.textContent = "歌词文件读取失败，请尝试复制文本到下方。";
+        });
+        reader.readAsText(file, "utf-8");
+      });
+    }
+    if (lyricsAddRow) {
+      lyricsAddRow.addEventListener("click", function () {
+        if (!lyricsEditorRows) return;
+        const row = createLyricsRow("", "");
+        lyricsEditorRows.appendChild(row);
+        selectedLyricsRow = row;
+        row.querySelector("[data-lyrics-text]").focus();
+        syncRawLyricsFromEditor();
+      });
+    }
+    if (lyricsFillCurrentTime) {
+      lyricsFillCurrentTime.addEventListener("click", function () {
+        if (!lyricsEditorRows) return;
+        const row = selectedLyricsRow || lyricsEditorRows.querySelector("[data-lyrics-row]");
+        if (!row) return;
+        row.querySelector("[data-lyrics-time]").value = formatSeconds(lyricsPreviewAudio ? lyricsPreviewAudio.currentTime : 0);
+        syncRawLyricsFromEditor();
+      });
+    }
+    if (lyricsPreviewAudio && lyricsPreviewTime) {
+      lyricsPreviewAudio.addEventListener("timeupdate", function () {
+        lyricsPreviewTime.textContent = formatSeconds(lyricsPreviewAudio.currentTime);
+      });
+    }
+    if (lyricsRawText) {
+      lyricsRawText.addEventListener("input", syncEditorFromRawLyrics);
+      renderLyricsEditor(parseLyricsText(lyricsRawText.value));
+    }
+    if (coverInput) {
+      coverInput.addEventListener("change", function () {
+        const file = coverInput.files && coverInput.files[0];
+        if (!file) return;
+        coverClasses.forEach(function (className) { preview.classList.remove(className); });
+        preview.style.backgroundImage = "url('" + URL.createObjectURL(file) + "')";
+        preview.style.backgroundSize = "cover";
+        preview.style.backgroundPosition = "center";
+      });
+    }
   })();
 </script>
 {% endblock %}

@@ -279,3 +279,57 @@ http://127.0.0.1:8000/
    - 评论回复接 `parent`。
    - 歌词页接播放器 `timeupdate` 高亮当前行。
    - 播放点击时用后端接口记录 `Track.plays`。
+
+## 2026-05-10 最新交接补充
+
+本节覆盖旧章节里已经过时的“未落地”描述。后续接手时优先以这里为准。
+
+### 播放器与全局 Track 状态
+
+- `static/js/echo-shell.js` 维护 `currentTrackId`，并同步到 `localStorage.echo_current_track_id`。
+- 所有 `[data-echo-track]` 元素点击都会调用 `playTrack(trackFromElement(...))`，再调用 `setCurrentTrack(track.id)`。
+- `setCurrentTrack(trackId)` 会刷新底部 `#lyrics-nav`、`#comments-nav` 的 `hx-get` 和 `href`：
+
+```text
+/lyrics/?track=<track_id>
+/comments/?track=<track_id>
+```
+
+- 底部歌词/评论按钮点击时，优先使用全局播放中的 `currentTrackId` / `localStorage.echo_current_track_id`，当前页面 URL 的 `track` 只作为兜底。这个修复避免页面停在 `track=12`、播放器播放 `track=10` 时，底部歌词/评论错误打开 `track=12`。
+- 首次加载时会从 URL `track` 或 localStorage 初始化当前 track；播放切换后以播放器状态为准。
+
+### 播放列表、上一首/下一首
+
+- 右侧播放列表来源是 `#playlist-track-list .playlist-track[data-echo-track]` 当前 DOM 顺序。
+- 上一首/下一首按钮通过 `#player-toggle` 的相邻元素定位。
+- `playPlaylistOffset(offset)` 会按播放列表循环播放，末尾下一首回到第一首，第一首上一首回到最后一首。
+- `audio ended` 事件会自动调用 `playPlaylistOffset(1)`。
+
+### 进度条与歌词联动
+
+- 进度条拖动分为 preview 和 commit：
+  - `input` 阶段只更新当前时间显示和歌词高亮预览，不反复写 `audio.currentTime`。
+  - `change` / `pointerup` 阶段才真正 seek。
+- 拖动期间歌词不会自动 `scrollIntoView`，避免歌词页滚动打断 range 输入，导致 seek 回到 `0:00`。
+- 歌词行支持点击跳转：点击 `.lyrics-line[data-start-ms]` 会把播放器跳到对应时间。
+- 歌词高亮使用 `lyric-dist-0` 到 `lyric-dist-4` 和 `lyric-dist-far` 做距离样式。用户手动滚动歌词时，短时间内会抑制自动滚动。
+
+### 评论、歌词资源刷新
+
+- `refreshActiveResource(trackId)` 会在当前中部主内容为 `data-echo-resource="lyrics"` 或 `comments` 时，切歌后重新 fetch 对应页面并替换 `#main-content`。
+- 评论页由后端 `@never_cache` 禁用缓存，避免切歌或筛选时复用旧 HTML。
+- 后续如继续改 HTMX 链接，务必保证底部歌词/评论按钮的 track 参数来自当前播放，不要重新改回“优先读当前页面 URL”。
+
+### 上传与格式支持边界
+
+- 当前音频上传支持：`.mp3`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.flac`, `.webm`。
+- `.ncm` / `ncmdump` 支持已撤回，项目内没有打包 `ncmdump`，后端也没有 `NCMDUMP_BIN` 配置。
+- 上传页仍保留普通音频元数据读取、时长预读、歌词分列编辑、歌词预听校对、封面预览等能力。
+
+### 建议回归
+
+1. 打开 `/lyrics/?track=12`。
+2. 从音乐库或播放列表点击播放 `track=10`。
+3. 确认右侧/底部显示 `track=10`。
+4. 点击底部歌词、评论按钮。
+5. 确认请求和页面都进入 `track=10`，不会回到 `track=12`。
