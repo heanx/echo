@@ -22,10 +22,13 @@ def _get_avatar_url(user):
 def user_status(request):
     from tracks.models import Track
 
+    queue_tracks = list(Track.objects.filter(status=Track.STATUS_PUBLISHED).order_by("-updated_at")[:10])
+
     return {
         "display_name": _get_display_name(request.user),
         "user_avatar_url": _get_avatar_url(request.user),
         "unread_message_count": 0,
         "friend_request_count": 0,
-        "shell_recent_tracks": Track.objects.filter(status=Track.STATUS_PUBLISHED).order_by("-updated_at")[:3],
+        "shell_recent_tracks": queue_tracks[:3],
+        "shell_queue_tracks": queue_tracks,
     }

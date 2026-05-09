@@ -1,4 +1,5 @@
-﻿<!doctype html>
+<!doctype html>
+{% load static %}
 <html lang="zh-CN" class="dark">
 <head>
   <meta charset="utf-8">
@@ -17,466 +18,7 @@
       },
     };
   </script>
-  <style>
-    input[type="range"] { accent-color: #6366F1; }
-    #echo-shell {
-      --top-row-height: 64px;
-      --player-row-height: 96px;
-      grid-template-rows: var(--top-row-height) minmax(0, 1fr) var(--player-row-height);
-    }
-    .echo-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-    .echo-scrollbar::-webkit-scrollbar-thumb { background: rgba(113,113,122,.38); border-radius: 999px; }
-    .echo-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .cover-summer { background-image: linear-gradient(135deg, #fca5a5, #818cf8 54%, #0f172a); }
-    .cover-city { background-image: linear-gradient(135deg, #bae6fd, #64748b 54%, #111827); }
-    .cover-eclipse { background-image: linear-gradient(135deg, #312e81, #c084fc 52%, #020617); }
-    .cover-sea { background-image: linear-gradient(135deg, #dbeafe, #38bdf8 52%, #164e63); }
-    .cover-ocean { background-image: linear-gradient(135deg, #cffafe, #0284c7 52%, #082f49); }
-    .cover-signal { background-image: linear-gradient(135deg, #86efac, #0f766e 50%, #052e16); }
-    .cover-sunset { background-image: linear-gradient(135deg, #fed7aa, #f97316 46%, #581c87); }
-    .cover-forest { background-image: linear-gradient(135deg, #bbf7d0, #15803d 52%, #052e16); }
-    .cover-night { background-image: linear-gradient(135deg, #1e1b4b, #4338ca 52%, #020617); }
-    .waveform {
-      background:
-        repeating-linear-gradient(90deg, rgba(255,255,255,.72) 0 2px, transparent 2px 8px),
-        linear-gradient(90deg, transparent, rgba(255,255,255,.26), transparent);
-      mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
-    }
-    #left-sidebar.is-collapsed .sidebar-expanded,
-    #left-sidebar.is-collapsed .sidebar-meta,
-    #left-sidebar.is-collapsed .sidebar-time { display: none; }
-    #left-sidebar {
-      overflow: visible;
-      position: relative;
-      z-index: 40;
-    }
-    #content-grid {
-      overflow: visible;
-    }
-    #left-sidebar.create-open .sidebar-body {
-      overflow: visible;
-    }
-    .library-row {
-      position: relative;
-    }
-    .echo-tooltip {
-      opacity: 0;
-      pointer-events: none;
-      position: absolute;
-      top: 50%;
-      left: calc(100% + 10px);
-      z-index: 999;
-      transform: translateY(-50%) translateX(-4px);
-      white-space: nowrap;
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, .08);
-      background: rgba(24, 24, 27, .94);
-      color: white;
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1;
-      padding: 7px 9px;
-      transition: opacity 120ms ease, transform 120ms ease;
-    }
-    .dark .echo-tooltip {
-      border-color: rgba(255, 255, 255, .14);
-      background: rgba(82, 82, 91, .96);
-    }
-    .library-collapse-button {
-      z-index: 70;
-    }
-    .has-tooltip {
-      position: relative;
-    }
-    .has-tooltip:hover .echo-tooltip,
-    .has-tooltip:focus-visible .echo-tooltip {
-      opacity: 1;
-      transform: translateY(-50%) translateX(0);
-    }
-    .top-tooltip {
-      left: auto;
-      right: calc(100% + 10px);
-      top: 50%;
-      z-index: 1200;
-      transform: translateY(-50%) translateX(4px);
-    }
-    .has-tooltip:hover .top-tooltip,
-    .has-tooltip:focus-visible .top-tooltip {
-      transform: translateY(-50%) translateX(0);
-    }
-    .top-search-cluster .top-tooltip {
-      left: calc(100% + 10px);
-      right: auto;
-      transform: translateY(-50%) translateX(-4px);
-    }
-    .top-search-cluster .has-tooltip:hover .top-tooltip,
-    .top-search-cluster .has-tooltip:focus-visible .top-tooltip {
-      transform: translateY(-50%) translateX(0);
-    }
-    .bottom-tooltip {
-      bottom: auto;
-      left: calc(100% + 10px);
-      top: 50%;
-      z-index: 1200;
-      transform: translateY(-50%) translateX(-4px);
-    }
-    .has-tooltip:hover .bottom-tooltip,
-    .has-tooltip:focus-visible .bottom-tooltip {
-      transform: translateY(-50%) translateX(0);
-    }
-    .playback-actions .bottom-tooltip {
-      left: auto;
-      right: calc(100% + 10px);
-      transform: translateY(-50%) translateX(4px);
-    }
-    .playback-actions .has-tooltip:hover .bottom-tooltip,
-    .playback-actions .has-tooltip:focus-visible .bottom-tooltip {
-      transform: translateY(-50%) translateX(0);
-    }
-    .top-search-wrap {
-      pointer-events: auto;
-      position: relative;
-      z-index: 20;
-      display: flex;
-      justify-content: center;
-      min-width: 0;
-      transform: translateX(var(--top-search-shift, 0px));
-      transition: transform 180ms ease;
-    }
-    .top-search-cluster {
-      pointer-events: auto;
-      width: min(720px, 100%);
-      min-width: 0;
-    }
-    .top-search-balance {
-      display: none;
-    }
-    #left-sidebar:not(.is-collapsed) .sidebar-library-trigger .echo-tooltip {
-      display: none;
-    }
-    .context-close-button {
-      opacity: 0;
-      pointer-events: none;
-      z-index: 80;
-      transform: translateY(-50%) scale(.96);
-      transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, color 140ms ease;
-    }
-    #context-panel:hover .context-close-button,
-    #context-panel:focus-within .context-close-button {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(-50%) scale(1);
-    }
-    .context-title {
-      position: relative;
-      z-index: 1;
-      transition: transform 160ms ease;
-      will-change: transform;
-    }
-    #context-panel:hover .context-title {
-      transform: translateX(42px);
-    }
-    .lyrics-panel {
-      background:
-        radial-gradient(circle at 22% 18%, rgba(255,255,255,.22), transparent 30%),
-        radial-gradient(circle at 84% 8%, rgba(255,255,255,.14), transparent 24%),
-        linear-gradient(160deg, #6366F1, #4F46E5 52%, #312E81);
-    }
-    .library-create {
-      position: relative;
-      z-index: 80;
-    }
-    .library-create-button {
-      border-radius: 999px;
-      min-width: 96px;
-    }
-    .library-create-close-icon,
-    .library-create.is-open .library-create-plus-icon {
-      display: none;
-    }
-    .library-create.is-open .library-create-close-icon {
-      display: block;
-    }
-    .library-create-menu {
-      --create-menu-left: 0px;
-      --create-menu-top: 0px;
-      --create-menu-width: 420px;
-      opacity: 0;
-      pointer-events: none;
-      position: fixed;
-      left: var(--create-menu-left);
-      top: var(--create-menu-top);
-      z-index: 1000;
-      width: var(--create-menu-width);
-      transform: translateY(-6px) scale(.98);
-      transform-origin: top left;
-      transition: opacity 140ms ease, transform 140ms ease;
-    }
-    .library-create.is-open .library-create-menu {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0) scale(1);
-    }
-    .create-menu-item-icon {
-      transition: background-color 160ms ease, color 160ms ease, transform 180ms ease;
-    }
-    .create-menu-item:hover .create-menu-item-icon,
-    .create-menu-item:focus-visible .create-menu-item-icon {
-      background: #6366F1;
-      color: white;
-      transform: rotate(6deg) scale(1.08);
-    }
-    .create-menu-item-description {
-      color: rgb(82 82 91);
-    }
-    .dark .create-menu-item-description {
-      color: rgb(212 212 216);
-    }
-    .library-title-group {
-      position: relative;
-      z-index: 1;
-      transition: transform 160ms ease;
-      will-change: transform;
-    }
-    .library-collapse-button {
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(.96);
-      transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, color 140ms ease;
-    }
-    #left-sidebar:not(.is-collapsed):hover .library-collapse-button,
-    #left-sidebar:not(.is-collapsed) .library-collapse-button:focus-visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1);
-    }
-    #left-sidebar:not(.is-collapsed):hover .library-title-group {
-      transform: translateX(42px);
-    }
-    #left-sidebar.is-collapsed .library-collapse-button { display: none; }
-    #left-sidebar.is-collapsed .library-content {
-      flex-direction: column;
-      gap: 10px;
-      transform: none;
-    }
-    #left-sidebar.is-collapsed .sidebar-library-trigger {
-      cursor: pointer;
-    }
-    .library-expand-icon { display: none; }
-    #left-sidebar.is-collapsed .sidebar-library-trigger:hover .library-book-icon,
-    #left-sidebar.is-collapsed .sidebar-library-trigger:focus-visible .library-book-icon {
-      display: none;
-    }
-    #left-sidebar.is-collapsed .sidebar-library-trigger:hover .library-expand-icon,
-    #left-sidebar.is-collapsed .sidebar-library-trigger:focus-visible .library-expand-icon {
-      display: block;
-    }
-    #left-sidebar.is-collapsed .library-row {
-      justify-content: center;
-      padding-left: 14px;
-      padding-right: 14px;
-    }
-    #left-sidebar.is-collapsed .sidebar-body {
-      padding-left: 14px;
-      padding-right: 14px;
-      overflow: visible !important;
-      scrollbar-width: none;
-    }
-    #left-sidebar.is-collapsed .sidebar-body::-webkit-scrollbar {
-      display: none;
-    }
-    #left-sidebar.is-collapsed .library-row,
-    #left-sidebar.is-collapsed .library-content,
-    #left-sidebar.is-collapsed .library-title-group {
-      overflow: visible;
-    }
-    #left-sidebar.is-collapsed .history-track {
-      display: flex;
-      grid-template-columns: none;
-      justify-content: center;
-      padding: 4px;
-    }
-    #left-sidebar.is-collapsed .history-track > span:first-child {
-      aspect-ratio: 1 / 1;
-      flex: 0 0 48px;
-      height: 48px;
-      width: 48px;
-    }
-    #left-sidebar.is-collapsed .sidebar-upload-action { margin-left: 0; }
-    #left-sidebar.is-collapsed .library-create-button {
-      min-width: 36px;
-      padding-left: 0;
-      padding-right: 0;
-      width: 36px;
-    }
-    #left-sidebar.is-compact .library-create-button {
-      min-width: 36px;
-      padding-left: 0;
-      padding-right: 0;
-      width: 36px;
-    }
-    #left-sidebar.is-compact .library-create-label {
-      display: none;
-    }
-    #content-grid.context-closed { column-gap: .5rem; }
-    #content-grid.layout-has-left #left-sidebar {
-      display: flex !important;
-    }
-    #content-grid.layout-no-left #left-sidebar,
-    #content-grid.layout-no-context #context-panel {
-      display: none !important;
-    }
-    #content-grid.layout-has-context #context-panel {
-      display: flex !important;
-      flex-direction: column;
-    }
-    #top-bar,
-    #playback-bar {
-      height: 100%;
-      min-height: 0;
-    }
-    #top-bar {
-      overflow: visible;
-    }
-    #playback-bar {
-      overflow: visible;
-    }
-    #playback-bar {
-      grid-template-columns: minmax(180px, 1fr) minmax(260px, 1.35fr) minmax(176px, auto);
-      --player-progress-width: 520px;
-      --player-volume-width: 128px;
-    }
-    .playback-controls {
-      width: min(100%, 560px);
-      min-height: 0;
-    }
-    .player-progress {
-      width: min(100%, var(--player-progress-width));
-      transition: width 180ms ease;
-    }
-    .playback-actions {
-      gap: clamp(8px, 1vw, 16px);
-      min-height: 0;
-      white-space: nowrap;
-    }
-    #player-volume {
-      width: var(--player-volume-width);
-      transition: width 180ms ease;
-    }
-    @media (max-width: 1200px) {
-      #playback-bar {
-        grid-template-columns: minmax(150px, .9fr) minmax(220px, 1.2fr) minmax(132px, auto);
-      }
-      .playback-actions {
-        gap: 10px;
-      }
-    }
-    @media (max-width: 1023px) {
-      #playback-bar {
-        grid-template-columns: minmax(140px, .9fr) minmax(210px, 1.15fr) minmax(80px, auto);
-      }
-      .playback-secondary-action {
-        display: none !important;
-      }
-      .player-progress {
-        grid-template-columns: 36px minmax(120px, 1fr) 36px;
-        gap: 8px;
-      }
-    }
-    @media (max-width: 820px) {
-      #playback-bar {
-        grid-template-columns: minmax(132px, 1fr) minmax(220px, 1.4fr);
-      }
-      .playback-actions {
-        display: none !important;
-      }
-      .playback-controls {
-        justify-self: end;
-      }
-      .playback-control-row {
-        gap: 12px;
-      }
-    }
-    .cover-media {
-      background-position: center;
-      background-size: cover;
-    }
-    @media (max-width: 1023px) {
-      #top-bar [data-top-action="upload"],
-      #top-bar .top-user-name {
-        display: none !important;
-      }
-    }
-    @media (max-width: 639px) {
-      #workspace-home-button {
-        display: none !important;
-      }
-      #top-bar {
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 8px;
-      }
-      .top-search-cluster {
-        width: 100%;
-        min-width: 0;
-      }
-      .top-search-balance {
-        display: none !important;
-      }
-      #echo-shell {
-        padding: 6px;
-      }
-      #playback-bar {
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: 52px 18px;
-        align-content: center;
-        row-gap: 4px;
-      }
-      #player-cover {
-        height: 44px;
-        width: 44px;
-      }
-      .playback-controls {
-        display: contents;
-      }
-      .playback-control-row {
-        grid-column: 2;
-        grid-row: 1;
-        gap: 10px;
-      }
-      #main-content {
-        padding: 14px;
-      }
-      .player-progress {
-        display: grid;
-        grid-column: 1 / -1;
-        grid-row: 2;
-        grid-template-columns: minmax(96px, 1fr);
-        justify-self: center;
-        width: min(100%, calc(100vw - 48px));
-      }
-      #player-current,
-      #player-duration {
-        display: none;
-      }
-    }
-    @media (max-width: 520px) {
-      #playback-bar {
-        row-gap: 8px;
-      }
-      .player-progress {
-        width: min(100%, 340px);
-      }
-    }
-    @media (max-width: 420px) {
-      .playback-control-row button[aria-label="上一首"],
-      .playback-control-row button[aria-label="下一首"] {
-        display: none;
-      }
-      .player-progress {
-        width: min(100%, 280px);
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/echo-shell.css' %}">
 </head>
 <body class="h-screen overflow-hidden bg-zinc-100 text-zinc-900 antialiased dark:bg-black dark:text-white">
   <div id="echo-shell" class="grid h-screen grid-rows-[64px_1fr_96px] gap-2 bg-zinc-100 p-2 dark:bg-black">
@@ -541,15 +83,15 @@
         <div class="sidebar-body flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 py-6 echo-scrollbar">
           <section>
             <div class="library-row mb-4 flex items-center">
-              <button data-toggle-sidebar type="button" class="library-collapse-button has-tooltip absolute left-0 top-0 grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="收起音乐库">
-                <svg viewBox="0 0 24 24" class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+              <button data-toggle-sidebar type="button" class="library-collapse-button has-tooltip absolute left-0 top-0 grid h-9 w-9 place-items-center rounded-lg text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="收起音乐库">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 transition-transform" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14"/><path d="m15 8-4 4 4 4"/></svg>
                 <span class="echo-tooltip" role="tooltip">收起音乐库</span>
               </button>
               <div class="library-content flex min-w-0 flex-1 items-center gap-3">
                 <div class="library-title-group flex min-w-0 items-center gap-3">
                   <button data-library-trigger type="button" class="sidebar-library-trigger has-tooltip grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-700 transition hover:bg-zinc-200 hover:text-zinc-950 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="展开音乐库">
                     <svg viewBox="0 0 24 24" class="library-book-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V6a2 2 0 0 1 2-2h12v15"/><path d="M4 19a2 2 0 0 0 2 2h12"/><path d="M9 9h6M9 13h4"/></svg>
-                    <svg viewBox="0 0 24 24" class="library-expand-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    <svg viewBox="0 0 24 24" class="library-expand-icon h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14"/><path d="m12 8 4 4-4 4"/></svg>
                     <span class="echo-tooltip" role="tooltip">展开音乐库</span>
                   </button>
                   <h2 class="sidebar-expanded min-w-0 truncate font-bold">音乐库</h2>
@@ -655,17 +197,59 @@
       </section>
 
       <aside id="context-panel" class="hidden min-h-0 overflow-hidden rounded-lg bg-white/95 transition-all duration-300 dark:bg-[#121212] xl:flex xl:flex-col">
-        <div class="relative flex h-[76px] shrink-0 items-center px-5">
-          <button id="close-context" type="button" class="context-close-button has-tooltip absolute left-5 top-1/2 grid h-9 w-9 place-items-center rounded-full transition hover:bg-zinc-200 dark:hover:bg-zinc-800" aria-label="关闭右侧栏">
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            <span class="echo-tooltip" role="tooltip">关闭右侧栏</span>
+        <div class="context-header relative flex h-[76px] shrink-0 items-center px-5">
+          <button id="close-context" type="button" class="context-close-button has-tooltip absolute left-5 top-1/2 grid h-9 w-9 place-items-center rounded-lg transition hover:bg-zinc-200 dark:hover:bg-zinc-800" aria-label="关闭右侧栏">
+            <svg data-context-icon="close" viewBox="0 0 24 24" class="h-5 w-5 hidden" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            <svg data-context-icon="collapse" viewBox="0 0 24 24" class="h-5 w-5 hidden" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5v14"/><path d="m9 8 4 4-4 4"/></svg>
+            <svg data-context-icon="expand" viewBox="0 0 24 24" class="h-5 w-5 hidden" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5v14"/><path d="m12 8-4 4 4 4"/></svg>
+            <svg data-context-icon="rail" viewBox="0 0 24 24" class="h-5 w-5 hidden" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5v14"/><path d="M8 8h4"/><path d="M8 12h4"/><path d="M8 16h4"/></svg>
+            <span id="context-close-tooltip" class="echo-tooltip context-tooltip" role="tooltip">折叠播放上下文</span>
           </button>
-          <h2 class="context-title font-bold">正在播放</h2>
+          <h2 id="context-panel-title" class="context-title font-bold">正在播放</h2>
         </div>
-        <div class="min-h-0 flex-1 overflow-y-auto p-5 echo-scrollbar">
-          <div id="side-cover" class="cover-summer cover-media relative aspect-[4/3] overflow-hidden rounded-lg"></div>
-          <h3 id="side-title" class="mt-5 truncate text-2xl font-black">等待播放</h3>
-          <p id="side-artist" class="mt-1 truncate text-zinc-500 dark:text-zinc-400">Echo 用户</p>
+        <div class="context-body min-h-0 flex-1 overflow-y-auto p-5 echo-scrollbar">
+          <section class="context-view is-active" data-context-view="now">
+            <div id="side-cover" class="cover-summer cover-media relative aspect-[4/3] overflow-hidden rounded-lg"></div>
+            <h3 id="side-title" class="mt-5 truncate text-2xl font-black">等待播放</h3>
+            <p id="side-artist" class="mt-1 truncate text-zinc-500 dark:text-zinc-400">Echo 用户</p>
+          </section>
+
+          <section class="context-view" data-context-view="playlist">
+            <div class="mb-2 flex items-center justify-between px-2">
+              <h3 class="text-sm font-bold">接下来播放</h3>
+              <span class="text-xs text-zinc-500">{{ shell_queue_tracks|length|default:0 }} 首</span>
+            </div>
+            <div id="playlist-track-list" class="space-y-1">
+              {% for track in shell_queue_tracks %}
+                <button
+                  type="button"
+                  class="playlist-track group grid w-full grid-cols-[26px_44px_minmax(0,1fr)] items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                  data-echo-track
+                  data-src="{{ track.audio_url|default:'' }}"
+                  data-id="{{ track.id }}"
+                  data-title="{{ track.title|escape }}"
+                  data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
+                  data-cover="{{ track.cover_theme|default:'summer' }}"
+                  data-cover-url="{{ track.cover_url }}"
+                  aria-label="播放 {{ track.title }}">
+                  <span class="grid h-6 w-6 place-items-center text-xs font-bold text-zinc-500">
+                    <span class="playlist-track-index">{{ forloop.counter }}</span>
+                    <span class="playlist-playing-mark h-2 w-2 rounded-full bg-brand" aria-hidden="true"></span>
+                  </span>
+                  <span class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} cover-media h-11 w-11 rounded-lg"
+                        {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}></span>
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm font-bold">{{ track.title }}</span>
+                    <span class="mt-0.5 block truncate text-xs text-zinc-500 dark:text-zinc-400">{{ track.artist|default:"Echo 用户" }}</span>
+                  </span>
+                </button>
+              {% empty %}
+                <div class="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                  暂时没有可播放的作品
+                </div>
+              {% endfor %}
+            </div>
+          </section>
         </div>
       </aside>
     </div>
@@ -737,385 +321,25 @@
           <input id="player-volume" type="range" min="0" max="1" step="0.01" value="0.72" class="w-24 lg:w-32" aria-label="音量">
           <span class="echo-tooltip bottom-tooltip" role="tooltip">音量</span>
         </span>
-        <button type="button" class="playback-secondary-action has-tooltip grid h-11 w-11 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="播放队列">
+        <button id="open-playlist" type="button" class="playback-secondary-action has-tooltip grid h-11 w-11 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="播放列表">
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-          <span class="echo-tooltip bottom-tooltip" role="tooltip">播放队列</span>
-        </button>
-        <button id="open-context" type="button" class="has-tooltip grid h-11 w-11 place-items-center rounded-lg bg-zinc-200 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="打开右侧栏">
-          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
-          <span class="echo-tooltip bottom-tooltip" role="tooltip">播放上下文</span>
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">播放列表</span>
         </button>
       </div>
       <audio id="echo-audio" preload="metadata"></audio>
     </footer>
   </div>
 
-  <script>
-    (function () {
-      const root = document.documentElement;
-      const topBar = document.getElementById("top-bar");
-      const topSearchWrap = document.querySelector(".top-search-wrap");
-      const shell = document.getElementById("content-grid");
-      const playbackBar = document.getElementById("playback-bar");
-      const playbackControls = document.querySelector(".playback-controls");
-      const playbackActions = document.querySelector(".playback-actions");
-      const leftSidebar = document.getElementById("left-sidebar");
-      const contextPanel = document.getElementById("context-panel");
-      const themeToggle = document.getElementById("theme-toggle");
-      const sidebarToggles = document.querySelectorAll("[data-toggle-sidebar]");
-      const libraryTrigger = document.querySelector("[data-library-trigger]");
-      const libraryCreate = document.querySelector(".library-create");
-      const libraryCreateButton = document.querySelector("[data-library-create]");
-      const libraryCreateMenu = document.querySelector(".library-create-menu");
-      const closeContext = document.getElementById("close-context");
-      const openContext = document.getElementById("open-context");
-      const audio = document.getElementById("echo-audio");
-      const volume = document.getElementById("player-volume");
-      const progress = document.getElementById("player-progress");
-      const current = document.getElementById("player-current");
-      const duration = document.getElementById("player-duration");
-      const title = document.getElementById("player-title");
-      const artist = document.getElementById("player-artist");
-      const cover = document.getElementById("player-cover");
-      const sideCover = document.getElementById("side-cover");
-      const sideTitle = document.getElementById("side-title");
-      const sideArtist = document.getElementById("side-artist");
-      const toggle = document.getElementById("player-toggle");
-      const playIcon = document.getElementById("player-play-icon");
-      const pauseIcon = document.getElementById("player-pause-icon");
-      const lyricsNav = document.getElementById("lyrics-nav");
-      const commentsNav = document.getElementById("comments-nav");
-      const coverClasses = ["cover-summer", "cover-city", "cover-eclipse", "cover-sea", "cover-ocean", "cover-signal", "cover-sunset", "cover-forest", "cover-night"];
-
-      function formatTime(value) {
-        if (!Number.isFinite(value)) return "--:--";
-        const minutes = Math.floor(value / 60);
-        const seconds = Math.floor(value % 60).toString().padStart(2, "0");
-        return minutes + ":" + seconds;
-      }
-      function setCover(element, name, url) {
-        coverClasses.forEach(function (className) { element.classList.remove(className); });
-        if (url) {
-          element.style.backgroundImage = "url('" + url.replace(/'/g, "\\'") + "')";
-          return;
-        }
-        element.style.backgroundImage = "";
-        element.classList.add("cover-" + (name || "summer"));
-      }
-      function setPlaying(playing) {
-        playIcon.classList.toggle("hidden", playing);
-        pauseIcon.classList.toggle("hidden", !playing);
-      }
-      function setTrackResourceLinks(trackId) {
-        if (!trackId) return;
-        const lyricsUrl = "{% url 'lyrics' %}?track=" + encodeURIComponent(trackId);
-        const commentsUrl = "{% url 'comments' %}?track=" + encodeURIComponent(trackId);
-        if (lyricsNav) {
-          lyricsNav.setAttribute("hx-get", lyricsUrl);
-          lyricsNav.setAttribute("href", lyricsUrl);
-        }
-        if (commentsNav) {
-          commentsNav.setAttribute("hx-get", commentsUrl);
-          commentsNav.setAttribute("href", commentsUrl);
-        }
-        localStorage.setItem("echo_current_track_id", trackId);
-      }
-      function refreshActiveResource(trackId) {
-        if (!trackId) return;
-        const activeResource = document.querySelector("#main-content [data-echo-resource]");
-        if (!activeResource) return;
-        const resourceName = activeResource.dataset.echoResource;
-        const baseUrl = resourceName === "comments" ? "{% url 'comments' %}" : "{% url 'lyrics' %}";
-        const url = baseUrl + "?track=" + encodeURIComponent(trackId);
-        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" } })
-          .then(function (response) { return response.text(); })
-          .then(function (html) {
-            const doc = new DOMParser().parseFromString(html, "text/html");
-            const nextMain = doc.querySelector("#main-content");
-            const currentMain = document.getElementById("main-content");
-            if (nextMain && currentMain) {
-              currentMain.outerHTML = nextMain.outerHTML;
-              history.pushState({}, "", url);
-            }
-          })
-          .catch(function () {});
-      }
-      function mainContentHasDirtyForm() {
-        const dirtyForms = document.querySelectorAll("#main-content form[data-echo-dirty='true']");
-        return Array.from(dirtyForms).some(function (form) {
-          return Array.from(form.elements).some(function (field) {
-            if (!field.name || field.disabled) return false;
-            if (field.type === "hidden" || field.type === "submit" || field.type === "button") return false;
-            if (field.type === "file") return field.files && field.files.length > 0;
-            if (field.type === "checkbox" || field.type === "radio") return field.checked;
-            return String(field.value || "").trim().length > 0;
-          });
-        });
-      }
-      function clearMainContentDirtyState() {
-        document.querySelectorAll("#main-content form[data-echo-dirty='true']").forEach(function (form) {
-          form.dataset.echoDirty = "false";
-        });
-      }
-      function resetMainContentToHome() {
-        if (mainContentHasDirtyForm()) {
-          const ok = window.confirm("当前页面有未保存的编辑内容，确定要回到首页吗？");
-          if (!ok) return false;
-        }
-        setCreateMenu(false);
-        fetch("{% url 'home' %}", { cache: "no-store", headers: { "HX-Request": "true" } })
-          .then(function (response) { return response.text(); })
-          .then(function (html) {
-            const doc = new DOMParser().parseFromString(html, "text/html");
-            const nextMain = doc.querySelector("#main-content");
-            const currentMain = document.getElementById("main-content");
-            if (!nextMain || !currentMain) {
-              window.location.href = "{% url 'home' %}";
-              return;
-            }
-            currentMain.outerHTML = nextMain.outerHTML;
-            clearMainContentDirtyState();
-            history.pushState({}, "", "{% url 'home' %}");
-          })
-          .catch(function () {
-            window.location.href = "{% url 'home' %}";
-          });
-        return false;
-      }
-      function applyTheme(theme) {
-        root.classList.toggle("dark", theme !== "light");
-        localStorage.setItem("echo_theme", theme !== "light" ? "dark" : "light");
-      }
-      function clampNumber(value, min, max) {
-        return Math.max(min, Math.min(max, value));
-      }
-      function updateShellLayout() {
-        if (!shell || !leftSidebar || !contextPanel) return;
-        const viewportWidth = document.documentElement.clientWidth;
-        const sidebarCollapsed = localStorage.getItem("echo_sidebar_collapsed") === "true";
-        const contextWanted = localStorage.getItem("echo_context_panel_open") !== "false";
-        const showLeft = viewportWidth >= 760;
-        const leftWidth = showLeft
-          ? (sidebarCollapsed ? 76 : Math.round(clampNumber(viewportWidth * 0.22, 248, 320)))
-          : 0;
-        const roomAfterLeft = viewportWidth - leftWidth;
-        const rightCandidate = Math.round(clampNumber(viewportWidth * 0.2, 248, 360));
-        const showContext = contextWanted && showLeft && roomAfterLeft - rightCandidate >= 560;
-        const rightWidth = showContext ? rightCandidate : 0;
-        shell.style.setProperty("--left-width", leftWidth + "px");
-        shell.style.setProperty("--right-width", rightWidth + "px");
-        shell.style.gridTemplateColumns = [
-          showLeft ? "var(--left-width)" : "",
-          "minmax(0, 1fr)",
-          showContext ? "var(--right-width)" : "",
-        ].filter(Boolean).join(" ");
-        shell.classList.toggle("layout-has-left", showLeft);
-        shell.classList.toggle("layout-no-left", !showLeft);
-        shell.classList.toggle("layout-has-context", showContext);
-        shell.classList.toggle("layout-no-context", !showContext);
-        shell.classList.toggle("context-closed", !showContext);
-        leftSidebar.classList.toggle("is-compact", showLeft && !sidebarCollapsed && leftWidth < 280);
-        contextPanel.style.display = showContext ? "" : "none";
-        openContext.setAttribute("aria-pressed", showContext ? "true" : "false");
-        openContext.classList.toggle("text-brand", showContext);
-      }
-      function applySidebar(collapsed) {
-        leftSidebar.classList.toggle("is-collapsed", collapsed);
-        if (libraryTrigger) libraryTrigger.setAttribute("aria-label", collapsed ? "展开音乐库" : "音乐库");
-        localStorage.setItem("echo_sidebar_collapsed", collapsed ? "true" : "false");
-        updateShellLayout();
-        queueTopSearchLayout();
-      }
-      function setCreateMenu(open) {
-        if (!libraryCreate || !libraryCreateButton) return;
-        libraryCreate.classList.toggle("is-open", open);
-        leftSidebar.classList.toggle("create-open", open);
-        libraryCreateButton.setAttribute("aria-expanded", open ? "true" : "false");
-        if (open) positionCreateMenu();
-      }
-      function positionCreateMenu() {
-        if (!libraryCreateButton || !libraryCreateMenu) return;
-        const gap = 12;
-        const margin = 12;
-        const preferredWidth = 420;
-        const buttonRect = libraryCreateButton.getBoundingClientRect();
-        const sidebarRect = leftSidebar.getBoundingClientRect();
-        const viewportWidth = document.documentElement.clientWidth;
-        const menuWidth = Math.min(preferredWidth, Math.max(280, viewportWidth - margin * 2));
-        const isCollapsed = leftSidebar.classList.contains("is-collapsed");
-        const rightOpeningLeft = (isCollapsed ? sidebarRect.right : buttonRect.right) + gap;
-        const rightOpeningFits = rightOpeningLeft + menuWidth <= viewportWidth - margin;
-        const left = rightOpeningFits
-          ? rightOpeningLeft
-          : Math.max(margin, Math.min(sidebarRect.right - menuWidth, viewportWidth - menuWidth - margin));
-        libraryCreateMenu.style.setProperty("--create-menu-left", Math.round(left) + "px");
-        libraryCreateMenu.style.setProperty("--create-menu-top", Math.round(buttonRect.bottom + gap) + "px");
-        libraryCreateMenu.style.setProperty("--create-menu-width", Math.round(menuWidth) + "px");
-      }
-      function applyContext(open) {
-        localStorage.setItem("echo_context_panel_open", open ? "true" : "false");
-        updateShellLayout();
-        queueTopSearchLayout();
-      }
-      function updateTopSearchLayout() {
-        if (!topBar || !topSearchWrap) return;
-        const gap = 16;
-        const barRect = topBar.getBoundingClientRect();
-        const logoRect = topBar.firstElementChild.getBoundingClientRect();
-        const actionsRect = topBar.lastElementChild.getBoundingClientRect();
-        const wrapLeft = barRect.left + topSearchWrap.offsetLeft;
-        const wrapWidth = topSearchWrap.offsetWidth;
-        const clusterWidth = Math.min(720, wrapWidth);
-        const centerX = barRect.left + barRect.width / 2;
-        const wrapCenterX = wrapLeft + wrapWidth / 2;
-        const desiredShift = centerX - wrapCenterX;
-        const minShift = logoRect.right + gap - (wrapCenterX - clusterWidth / 2);
-        const maxShift = actionsRect.left - gap - (wrapCenterX + clusterWidth / 2);
-        const shift = minShift <= maxShift ? clampNumber(desiredShift, minShift, maxShift) : 0;
-        topSearchWrap.style.setProperty("--top-search-shift", Math.round(shift) + "px");
-      }
-      function queueTopSearchLayout() {
-        requestAnimationFrame(function () {
-          updateTopSearchLayout();
-          requestAnimationFrame(updateTopSearchLayout);
-        });
-      }
-      function updatePlaybackLayout() {
-        if (!playbackBar || !playbackControls) return;
-        const controlsWidth = playbackControls.offsetWidth;
-        const viewportWidth = document.documentElement.clientWidth;
-        const progressPadding = viewportWidth < 640 ? 12 : 88;
-        const progressWidth = clampNumber(Math.round(controlsWidth - progressPadding), 128, 520);
-        const actionWidth = playbackActions ? playbackActions.offsetWidth : 0;
-        const volumeWidth = clampNumber(Math.round(actionWidth * 0.32), 56, 128);
-        playbackBar.style.setProperty("--player-progress-width", progressWidth + "px");
-        playbackBar.style.setProperty("--player-volume-width", volumeWidth + "px");
-      }
-      function queuePlaybackLayout() {
-        requestAnimationFrame(function () {
-          updatePlaybackLayout();
-          requestAnimationFrame(updatePlaybackLayout);
-        });
-      }
-      function playTrack(track) {
-        title.textContent = track.title || "未命名音频";
-        artist.textContent = track.artist || "Echo 用户";
-        sideTitle.textContent = title.textContent;
-        sideArtist.textContent = artist.textContent;
-        setCover(cover, track.cover || "summer", track.coverUrl || "");
-        setCover(sideCover, track.cover || "summer", track.coverUrl || "");
-        setTrackResourceLinks(track.id);
-        refreshActiveResource(track.id);
-        if (track.src) {
-          audio.src = track.src;
-          audio.play().catch(function () {});
-        }
-        setPlaying(true);
-      }
-
-      document.addEventListener("click", function (event) {
-        const homeTrigger = event.target.closest("[data-home-nav]");
-        if (homeTrigger) {
-          window.EchoHome(event);
-        }
-      }, true);
-      window.EchoHome = function (event) {
-        if (event) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        }
-        return resetMainContentToHome();
-      };
-
-      applyTheme(localStorage.getItem("echo_theme") || "dark");
-      applySidebar(localStorage.getItem("echo_sidebar_collapsed") === "true");
-      applyContext(localStorage.getItem("echo_context_panel_open") !== "false");
-      queueTopSearchLayout();
-      queuePlaybackLayout();
-      setTrackResourceLinks(localStorage.getItem("echo_current_track_id"));
-      audio.volume = Number(localStorage.getItem("echo_player_volume") || "0.72");
-      if (volume) volume.value = audio.volume;
-      document.body.addEventListener("input", function (event) {
-        const form = event.target.closest("#main-content form");
-        if (form) form.dataset.echoDirty = "true";
-      });
-      document.body.addEventListener("change", function (event) {
-        const form = event.target.closest("#main-content form");
-        if (form) form.dataset.echoDirty = "true";
-      });
-      document.body.addEventListener("submit", function (event) {
-        const form = event.target.closest("#main-content form");
-        if (form) form.dataset.echoDirty = "false";
-      });
-      themeToggle.addEventListener("click", function () { applyTheme(root.classList.contains("dark") ? "light" : "dark"); });
-      sidebarToggles.forEach(function (button) {
-        button.addEventListener("click", function () { applySidebar(localStorage.getItem("echo_sidebar_collapsed") !== "true"); });
-      });
-      if (libraryTrigger) {
-        libraryTrigger.addEventListener("click", function () {
-          if (leftSidebar.classList.contains("is-collapsed")) applySidebar(false);
-        });
-      }
-      if (libraryCreateButton) {
-        libraryCreateButton.addEventListener("click", function (event) {
-          event.stopPropagation();
-          setCreateMenu(!libraryCreate.classList.contains("is-open"));
-        });
-      }
-      window.addEventListener("resize", function () {
-        updateShellLayout();
-        if (libraryCreate && libraryCreate.classList.contains("is-open")) positionCreateMenu();
-        queueTopSearchLayout();
-        queuePlaybackLayout();
-      });
-      document.addEventListener("click", function (event) {
-        if (libraryCreate && !libraryCreate.contains(event.target)) setCreateMenu(false);
-      });
-      document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") setCreateMenu(false);
-      });
-      closeContext.addEventListener("click", function () { applyContext(false); });
-      openContext.addEventListener("click", function () { applyContext(localStorage.getItem("echo_context_panel_open") === "false"); });
-      if (volume) {
-        volume.addEventListener("input", function () {
-          audio.volume = Number(volume.value);
-          localStorage.setItem("echo_player_volume", volume.value);
-        });
-      }
-      toggle.addEventListener("click", function () {
-        if (!audio.src) return;
-        audio.paused ? audio.play() : audio.pause();
-      });
-      progress.addEventListener("input", function () {
-        if (audio.duration) audio.currentTime = Number(progress.value);
-      });
-      audio.addEventListener("loadedmetadata", function () {
-        if (Number.isFinite(audio.duration)) {
-          progress.max = Math.floor(audio.duration);
-          duration.textContent = formatTime(audio.duration);
-        }
-      });
-      audio.addEventListener("timeupdate", function () {
-        if (Number.isFinite(audio.duration)) {
-          progress.value = Math.floor(audio.currentTime);
-          current.textContent = formatTime(audio.currentTime);
-        }
-      });
-      audio.addEventListener("play", function () { setPlaying(true); });
-      audio.addEventListener("pause", function () { setPlaying(false); });
-      document.body.addEventListener("click", function (event) {
-        const trigger = event.target.closest("[data-echo-track]");
-        if (!trigger) return;
-        playTrack({
-          src: trigger.dataset.src,
-          id: trigger.dataset.id,
-          title: trigger.dataset.title,
-          artist: trigger.dataset.artist,
-          cover: trigger.dataset.cover,
-          coverUrl: trigger.dataset.coverUrl,
-        });
-      });
-    })();
+  <script id="echo-config" type="application/json">
+    {
+      "homeUrl": "{% url 'home' %}",
+      "lyricsUrl": "{% url 'lyrics' %}",
+      "commentsUrl": "{% url 'comments' %}"
+    }
   </script>
+  <script>
+    window.EchoConfig = JSON.parse(document.getElementById("echo-config").textContent);
+  </script>
+  <script defer src="{% static 'js/echo-shell.js' %}"></script>
 </body>
 </html>
