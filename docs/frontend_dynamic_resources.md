@@ -1,6 +1,6 @@
 # Echo 前端动态资源与响应式约定
 
-更新时间：2026-05-07
+更新时间：2026-05-11
 
 ## 动态资源入口
 
@@ -30,8 +30,9 @@
 `core.context_processors.user_status` 除用户状态外，也提供：
 
 - `shell_recent_tracks`
+- `shell_queue_tracks`
 
-左侧栏“最近播放”当前先从数据库中的 `Track.updated_at` 取最近 3 条，后续可以替换为真正的播放历史模型。
+左侧栏“最近播放”当前先从数据库中的 `Track.updated_at` 取最近 3 条，右侧播放列表使用最近 10 条 published track。后续可以替换为真正的播放历史和真实播放队列模型。
 
 ## 响应式布局
 
@@ -43,6 +44,19 @@
 - `< 640px`：压缩顶部栏和播放器高度，隐藏播放器进度条，保留核心播放控制。
 
 不要在小屏下继续保留空的 `--left-width` 或 `--right-width` 栅格轨道，否则会再次出现内容被挤到左侧、右侧大片空白的问题。
+
+## 2026-05-11 GUI 新规范待落地
+
+新的 GUI 设计规范已经进入 TODO，目标是统一桌面、手机竖屏、手机横屏三类形态：
+
+- 桌面 `> 960px`：左侧栏 + 主内容 + 右侧上下文三栏。
+- 播放栏左右列必须对称，禁止右列使用 `auto` 破坏播放控制居中。
+- JS 的右侧栏显示阈值需要和 CSS 断点统一，重点是 `960px / 820px / 480px`。
+- 手机竖屏 `<= 480px`：全屏播放视图 + 底部 tab 栏。
+- 手机横屏且 `max-height: 500px`：播放栏压缩到单行 `<= 56px`，左侧封面信息，右侧播放列表。
+- 进度条视觉可以保持细线，但触摸响应区需要至少 `24px` 高。
+
+当前代码只做了局部修复，尚未完整落地以上规范。继续改播放栏前，优先统一 JS/CSS 断点，避免右侧栏和底部栏各用一套规则。
 
 ## 2026-05-10 前端最新状态
 
@@ -64,14 +78,20 @@ currentTrackId -> localStorage.echo_current_track_id -> URLSearchParams(track)
 
 ### 底部歌词/评论按钮
 
-`setCurrentTrack(trackId)` 负责同步：
+`setCurrentTrack(trackId)` 负责同步当前播放 ID 和底部按钮的 `hx-get`：
 
 ```text
 #lyrics-nav[hx-get="/lyrics/?track=<track_id>"]
 #comments-nav[hx-get="/comments/?track=<track_id>"]
 ```
 
-同一函数也会更新 `href`，虽然当前元素是 button，但保留 `href` 是为了兼容后续可能改回链接或无 HTMX fallback。
+实际点击底部 `#lyrics-nav` / `#comments-nav` 时，`static/js/echo-shell.js` 会拦截同次 HTMX 点击，调用 `loadMainResource(resourceName, currentTrackId)` 直接请求当前播放 track 的歌词或评论。这样可以避免切歌后的自动刷新请求和手动点击请求互相覆盖。
+
+`loadMainResource()` 内部使用：
+
+- `AbortController` 取消旧请求。
+- `mainResourceRequestId` 防止旧请求晚返回覆盖新内容。
+- `extractMainContent()` 从完整页面响应里抽取真正的 `#main-content`，避免把整套 `base.html` 嵌进主内容区。
 
 ### 播放列表控制
 
@@ -100,6 +120,13 @@ lyric-dist-far
 ```
 
 点击歌词行会跳转到该行时间。
+
+歌词展示的当前样式约定：
+
+- `.lyrics-lines` 宽度限制为面板的约 `2/3`，移动端恢复 `100%`。
+- 歌词字体使用 Arial/Helvetica。
+- 当前行不再放大，只保留轻微右移。
+- 长句允许在歌词宽度内自然换行。
 
 ### 上传页前端
 

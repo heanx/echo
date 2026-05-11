@@ -52,6 +52,8 @@
       let lastLyricActiveIndex = -1;
       let lastUserScrollTime = 0;
       let lastAutoScrollTime = 0;
+      let activeResourceAbort = null;
+      let mainResourceRequestId = 0;
 
       var lyricDistClasses = ["lyric-dist-0", "lyric-dist-1", "lyric-dist-2", "lyric-dist-3", "lyric-dist-4", "lyric-dist-far"];
 
@@ -289,25 +291,63 @@
         }
         return false;
       }
+      function syncMainResourceState() {
+        var main = document.getElementById("main-content");
+        if (!main) return;
+        var hasLyrics = main.querySelector("[data-echo-resource='lyrics']");
+        main.classList.toggle("lyrics-scroll", Boolean(hasLyrics));
+      }
+      function cancelActiveResourceLoad() {
+        mainResourceRequestId += 1;
+        if (activeResourceAbort) {
+          activeResourceAbort.abort();
+          activeResourceAbort = null;
+        }
+      }
+      function extractMainContent(doc) {
+        const shellMain = doc.querySelector("#echo-shell #content-grid > section > #main-content");
+        const nextMain = shellMain || doc.querySelector("#main-content");
+        if (!nextMain) return null;
+
+        const cleanMain = nextMain.cloneNode(true);
+        cleanMain.querySelectorAll("#echo-shell, #content-grid, #main-content").forEach(function (node) {
+          if (node !== cleanMain) node.remove();
+        });
+        return cleanMain;
+      }
+      function loadMainResource(resourceName, trackId) {
+        if (!resourceName || !trackId) return;
+        cancelActiveResourceLoad();
+        const baseUrl = resourceName === "comments" ? echoConfig.commentsUrl : echoConfig.lyricsUrl;
+        const url = baseUrl + "?track=" + encodeURIComponent(trackId);
+        const controller = new AbortController();
+        const requestId = mainResourceRequestId;
+        activeResourceAbort = controller;
+        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" }, signal: controller.signal })
+          .then(function (response) { return response.text(); })
+          .then(function (html) {
+            if (controller.signal.aborted) return;
+            if (requestId !== mainResourceRequestId) return;
+            if (String(currentTrackId) !== String(trackId)) return;
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            const nextMain = extractMainContent(doc);
+            const currentMain = document.getElementById("main-content");
+            if (nextMain && currentMain) {
+              currentMain.outerHTML = nextMain.outerHTML;
+              syncMainResourceState();
+              history.pushState({}, "", url);
+            }
+          })
+          .catch(function () {})
+          .finally(function () {
+            if (activeResourceAbort === controller) activeResourceAbort = null;
+          });
+      }
       function refreshActiveResource(trackId) {
         if (!trackId) return;
         const activeResource = document.querySelector("#main-content [data-echo-resource]");
         if (!activeResource) return;
-        const resourceName = activeResource.dataset.echoResource;
-        const baseUrl = resourceName === "comments" ? echoConfig.commentsUrl : echoConfig.lyricsUrl;
-        const url = baseUrl + "?track=" + encodeURIComponent(trackId);
-        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" } })
-          .then(function (response) { return response.text(); })
-          .then(function (html) {
-            const doc = new DOMParser().parseFromString(html, "text/html");
-            const nextMain = doc.querySelector("#main-content");
-            const currentMain = document.getElementById("main-content");
-            if (nextMain && currentMain) {
-              currentMain.outerHTML = nextMain.outerHTML;
-              history.pushState({}, "", url);
-            }
-          })
-          .catch(function () {});
+        loadMainResource(activeResource.dataset.echoResource, trackId);
       }
       function mainContentHasDirtyForm() {
         const dirtyForms = document.querySelectorAll("#main-content form[data-echo-dirty='true']");
@@ -480,7 +520,8 @@
           trigger.classList.add("tooltip-flip-left");
         }
       }
-      function playTrack(track) {
+      function selectTrack(track) {
+        if (!track) return;
         setCurrentTrack(track.id || "");
         playReportKey = "";
         lastLyricActiveIndex = -1;
@@ -494,6 +535,11 @@
         refreshActiveResource(track.id);
         if (track.src) {
           audio.src = track.src;
+        }
+      }
+      function playTrack(track) {
+        selectTrack(track);
+        if (track && track.src) {
           audio.play().catch(function () {});
         }
         setPlaying(true);
@@ -528,9 +574,21 @@
       var urlParams = new URLSearchParams(window.location.search);
       var urlTrackId = urlParams.get("track") || "";
       var storedTrackId = localStorage.getItem("echo_current_track_id") || "";
-      var initTrackId = urlTrackId || storedTrackId;
-      if (initTrackId) {
-        setCurrentTrack(initTrackId);
+      if (playlistTrackList) {
+        var initTrack = null;
+        if (urlTrackId) {
+          initTrack = playlistTrackList.querySelector('.playlist-track[data-echo-track][data-id="' + CSS.escape(String(urlTrackId)) + '"]');
+        }
+        if (!initTrack) {
+          initTrack = playlistTrackList.querySelector(".playlist-track[data-echo-track]");
+        }
+        if (initTrack) {
+          selectTrack(trackFromElement(initTrack));
+        } else if (urlTrackId) {
+          setCurrentTrack(urlTrackId);
+        }
+      } else if (urlTrackId || storedTrackId) {
+        setCurrentTrack(urlTrackId || storedTrackId);
       }
       audio.volume = Number(localStorage.getItem("echo_player_volume") || "0.72");
       if (volume) volume.value = audio.volume;
@@ -608,20 +666,22 @@
         var urlParams = new URLSearchParams(window.location.search);
         return currentTrackId || localStorage.getItem("echo_current_track_id") || urlParams.get("track") || "";
       };
+      var openPlaybackResource = function (event, resourceName) {
+        var trackId = resolvePlaybackTrackId();
+        if (!trackId) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setCurrentTrack(trackId);
+        loadMainResource(resourceName, trackId);
+      };
       if (lyricsNav) {
-        lyricsNav.addEventListener("click", function () {
-          var trackId = resolvePlaybackTrackId();
-          if (trackId) {
-            setCurrentTrack(trackId);
-          }
+        lyricsNav.addEventListener("click", function (event) {
+          openPlaybackResource(event, "lyrics");
         }, true);
       }
       if (commentsNav) {
-        commentsNav.addEventListener("click", function () {
-          var trackId = resolvePlaybackTrackId();
-          if (trackId) {
-            setCurrentTrack(trackId);
-          }
+        commentsNav.addEventListener("click", function (event) {
+          openPlaybackResource(event, "comments");
         }, true);
       }
       toggle.addEventListener("click", function () {
@@ -732,16 +792,11 @@
           lastUserScrollTime = Date.now();
         }
       }, { passive: true });
-      document.addEventListener("htmx:afterSettle", function () {
-        var main = document.getElementById("main-content");
-        if (!main) return;
-        var hasLyrics = main.querySelector("[data-echo-resource='lyrics']");
-        main.classList.toggle("lyrics-scroll", Boolean(hasLyrics));
+      document.addEventListener("htmx:beforeRequest", function (event) {
+        cancelActiveResourceLoad();
       });
-      (function () {
-        var main = document.getElementById("main-content");
-        if (main && main.querySelector("[data-echo-resource='lyrics']")) {
-          main.classList.add("lyrics-scroll");
-        }
-      })();
+      document.addEventListener("htmx:afterSettle", function () {
+        syncMainResourceState();
+      });
+      syncMainResourceState();
     })();

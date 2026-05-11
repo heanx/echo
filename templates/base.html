@@ -209,9 +209,11 @@
         </div>
         <div class="context-body min-h-0 flex-1 overflow-y-auto p-5 echo-scrollbar">
           <section class="context-view is-active" data-context-view="now">
-            <div id="side-cover" class="cover-summer cover-media relative aspect-[4/3] overflow-hidden rounded-lg"></div>
-            <h3 id="side-title" class="mt-5 truncate text-2xl font-black">等待播放</h3>
-            <p id="side-artist" class="mt-1 truncate text-zinc-500 dark:text-zinc-400">Echo 用户</p>
+            {% with first_track=shell_queue_tracks.0 %}
+            <div id="side-cover" class="{% if not first_track.cover_url %}cover-{{ first_track.cover_theme|default:'summer' }}{% endif %} cover-media relative aspect-[4/3] overflow-hidden rounded-lg"{% if first_track.cover_url %} style="background-image: url('{{ first_track.cover_url }}');"{% endif %}></div>
+            <h3 id="side-title" class="mt-5 truncate text-2xl font-black">{{ first_track.title|default:"等待播放" }}</h3>
+            <p id="side-artist" class="mt-1 truncate text-zinc-500 dark:text-zinc-400">{{ first_track.artist|default:"Echo 用户" }}</p>
+            {% endwith %}
           </section>
 
           <section class="context-view" data-context-view="playlist">
@@ -256,11 +258,13 @@
 
     <footer id="playback-bar" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-white px-3 shadow-soft sm:gap-4 sm:px-4 md:grid-cols-[minmax(150px,1fr)_minmax(240px,1.5fr)_minmax(120px,1fr)] dark:bg-black">
       <div class="flex min-w-0 items-center gap-3">
-        <span id="player-cover" class="cover-summer cover-media h-12 w-12 shrink-0 rounded-lg sm:h-14 sm:w-14"></span>
+        {% with first_track=shell_queue_tracks.0 %}
+        <span id="player-cover" class="{% if not first_track.cover_url %}cover-{{ first_track.cover_theme|default:'summer' }}{% endif %} cover-media h-12 w-12 shrink-0 rounded-lg sm:h-14 sm:w-14"{% if first_track.cover_url %} style="background-image: url('{{ first_track.cover_url }}');"{% endif %}></span>
         <div class="min-w-0">
-          <p id="player-title" class="truncate text-sm font-bold">等待播放</p>
-          <p id="player-artist" class="truncate text-xs text-zinc-500 dark:text-zinc-400">Echo 用户</p>
+          <p id="player-title" class="truncate text-sm font-bold">{{ first_track.title|default:"等待播放" }}</p>
+          <p id="player-artist" class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ first_track.artist|default:"Echo 用户" }}</p>
         </div>
+        {% endwith %}
       </div>
       <div class="playback-controls flex min-w-0 flex-col items-center gap-3">
         <div class="playback-control-row flex items-center gap-3 sm:gap-5">
