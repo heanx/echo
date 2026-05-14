@@ -3,8 +3,41 @@
 {% block title %}歌词 - Echo{% endblock %}
 
 {% block main %}
-<section class="lyrics-panel -m-4 min-h-full rounded-lg px-6 py-7 text-white sm:-m-6 sm:px-10 sm:py-10" data-echo-resource="lyrics">
-  <div class="flex items-start justify-between gap-4">
+<section class="lyrics-panel min-h-full rounded-lg px-6 py-7 text-white sm:px-10 sm:py-10"
+         data-echo-resource="lyrics"
+         data-cover-theme="{{ track.cover_theme|default:'summer' }}"
+         data-cover-url="{{ track.cover_url|default:'' }}"
+         style="{% if request.COOKIES.echo_theme == 'light' %}{% if track.cover_theme == 'city' %}--lyrics-surface: rgb(116, 130, 151);{% elif track.cover_theme == 'eclipse' %}--lyrics-surface: rgb(108, 101, 159);{% elif track.cover_theme == 'sea' %}--lyrics-surface: rgb(76, 196, 249);{% elif track.cover_theme == 'ocean' %}--lyrics-surface: rgb(27, 144, 205);{% elif track.cover_theme == 'signal' %}--lyrics-surface: rgb(39, 132, 125);{% elif track.cover_theme == 'sunset' %}--lyrics-surface: rgb(250, 129, 45);{% elif track.cover_theme == 'forest' %}--lyrics-surface: rgb(44, 141, 80);{% elif track.cover_theme == 'night' %}--lyrics-surface: rgb(86, 76, 207);{% else %}--lyrics-surface: rgb(249, 174, 174);{% endif %}{% else %}{% if track.cover_theme == 'city' %}--lyrics-surface: rgb(90, 104, 125);{% elif track.cover_theme == 'eclipse' %}--lyrics-surface: rgb(83, 76, 133);{% elif track.cover_theme == 'sea' %}--lyrics-surface: rgb(50, 170, 223);{% elif track.cover_theme == 'ocean' %}--lyrics-surface: rgb(2, 119, 179);{% elif track.cover_theme == 'signal' %}--lyrics-surface: rgb(14, 106, 99);{% elif track.cover_theme == 'sunset' %}--lyrics-surface: rgb(224, 104, 20);{% elif track.cover_theme == 'forest' %}--lyrics-surface: rgb(19, 115, 55);{% elif track.cover_theme == 'night' %}--lyrics-surface: rgb(60, 50, 182);{% else %}--lyrics-surface: rgb(223, 149, 149);{% endif %}{% endif %}">
+  <script>
+    (function () {
+      var panel = document.currentScript.parentElement;
+      if (!panel) return;
+      var coverUrl = panel.dataset.coverUrl || "";
+      if (!coverUrl) return;
+      function clampChannel(value) {
+        return Math.max(0, Math.min(255, Math.round(value)));
+      }
+      function mixRgb(rgb, target, amount) {
+        return [
+          clampChannel(rgb[0] + (target[0] - rgb[0]) * amount),
+          clampChannel(rgb[1] + (target[1] - rgb[1]) * amount),
+          clampChannel(rgb[2] + (target[2] - rgb[2]) * amount)
+        ];
+      }
+      function isLightTheme() {
+        return !document.documentElement.classList.contains("dark");
+      }
+      try {
+        var cached = localStorage.getItem("echo_cover_color:" + coverUrl);
+        if (!cached) return;
+        var parsed = JSON.parse(cached);
+        if (!Array.isArray(parsed) || parsed.length !== 3) return;
+        var adjusted = isLightTheme() ? mixRgb(parsed, [255, 255, 255], 0.10) : mixRgb(parsed, [0, 0, 0], 0.10);
+        panel.style.setProperty("--lyrics-surface", "rgb(" + adjusted[0] + ", " + adjusted[1] + ", " + adjusted[2] + ")");
+      } catch (_error) {}
+    })();
+  </script>
+  <div class="lyrics-panel-content flex items-start justify-between gap-4">
     <div class="min-w-0">
       <p class="text-sm font-semibold uppercase tracking-wide text-white/70">Lyrics</p>
       <h1 class="mt-2 truncate text-3xl font-black">{{ track.title|default:"等待播放" }}</h1>
@@ -17,25 +50,31 @@
     </a>
   </div>
 
-  <div class="lyrics-lines mt-8 max-w-4xl space-y-7 pb-16">
-    {% for line in lyrics_lines %}
-      <p class="lyrics-line group flex gap-5 text-3xl font-black leading-[1.12] text-white/45 sm:text-5xl sm:leading-[1.08]"
-         data-lyric-line
-         data-start-ms="{{ line.start_ms }}"
-         data-position="{{ line.position }}">
-        <span>{{ line.text }}</span>
-      </p>
-    {% empty %}
-      <div class="rounded-lg bg-white/10 p-5 text-white/75">
-        {% if lyrics_set.status == "instrumental" %}
-          这首作品已标记为无歌词的纯音乐。
-        {% elif lyrics_set.status == "pending" %}
-          这首作品暂无歌词，之后可以从上传歌词页补充。
-        {% else %}
-          还没有歌词。可以先运行 seed_demo，或从上传歌词页录入 LRC/纯文本。
-        {% endif %}
-      </div>
-    {% endfor %}
-  </div>
+  {% if track %}
+    <div class="lyrics-panel-content lyrics-lines mt-8 max-w-4xl space-y-7 pb-16">
+      {% for line in lyrics_lines %}
+        <p class="lyrics-line group flex gap-5 text-3xl font-black leading-[1.12] text-white/45 sm:text-5xl sm:leading-[1.08]"
+           data-lyric-line
+           data-start-ms="{{ line.start_ms }}"
+           data-position="{{ line.position }}">
+          <span>{{ line.text }}</span>
+        </p>
+      {% empty %}
+        <div class="rounded-lg bg-white/10 p-5 text-white/75">
+          {% if lyrics_set and lyrics_set.status == "instrumental" %}
+            这首作品已标记为无歌词的纯音乐。
+          {% elif lyrics_set and lyrics_set.status == "pending" %}
+            这首作品暂无歌词，之后可以从上传歌词页补充。
+          {% else %}
+            还没有歌词。可以先运行 seed_demo，或从上传歌词页录入 LRC/纯文本。
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="lyrics-panel-content mt-8 max-w-2xl rounded-2xl bg-white/10 p-4 text-zinc-950">
+      {% include "components/empty_state.html" with icon="lyrics" title="还没有可展示的歌词" description="当前没有已发布作品，或者这些作品还没关联歌词。上传作品后，这里会自动跟随播放器切换。" action_href="/tracks/upload/" action_label="上传音乐" %}
+    </div>
+  {% endif %}
 </section>
 {% endblock %}

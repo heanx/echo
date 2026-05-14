@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}服务暂时不可用 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto flex min-h-full max-w-2xl items-center justify-center py-8">
+  {% include "components/empty_state.html" with icon="warning" title="服务暂时不可用" description="这次请求没有顺利完成。页面主体、播放器和已加载内容不会丢，你可以稍后重试。" action_href="/" action_hx_get="/" action_label="回到首页" %}
+</section>
+{% endblock %}

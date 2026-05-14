@@ -1,5 +1,5 @@
-from pathlib import Path
-
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -8,26 +8,19 @@ from django.views.decorators.http import require_POST
 from lyrics.models import TrackLyrics
 
 from .models import Track
+from .upload_validation import (
+    ALLOWED_AUDIO_EXTENSIONS,
+    ALLOWED_IMAGE_EXTENSIONS,
+    ALLOWED_LYRICS_EXTENSIONS,
+    MAX_AUDIO_SIZE,
+    MAX_IMAGE_SIZE,
+    MAX_LYRICS_SIZE,
+    validate_upload_file,
+)
 
 
-ALLOWED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm"}
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
-MAX_AUDIO_SIZE = 50 * 1024 * 1024
-MAX_IMAGE_SIZE = 8 * 1024 * 1024
-
-
-def _validate_upload_file(uploaded_file, allowed_extensions, max_size, label):
-    if not uploaded_file:
-        return ""
-
-    extension = Path(uploaded_file.name).suffix.lower()
-    if extension not in allowed_extensions:
-        allowed = "、".join(sorted(allowed_extensions))
-        return f"{label}格式不支持，请上传 {allowed} 文件"
-    if uploaded_file.size > max_size:
-        limit_mb = max_size // (1024 * 1024)
-        return f"{label}不能超过 {limit_mb}MB"
-    return ""
+DEFAULT_PER_PAGE = 20
+MAX_PER_PAGE = 100
 
 
 def _decode_id3_text(payload):
@@ -89,16 +82,116 @@ def _read_audio_metadata(uploaded_file):
     return {key: value for key, value in metadata.items() if value}
 
 
+def _parse_positive_int(value, default):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _build_page_links(page_obj, build_url=None):
+    current = page_obj.number
+    last = page_obj.paginator.num_pages
+    if last <= 7:
+        pages = list(range(1, last + 1))
+    else:
+        pages = [1]
+        window_start = max(2, current - 1)
+        window_end = min(last - 1, current + 1)
+        if window_start > 2:
+            pages.append(None)
+        pages.extend(range(window_start, window_end + 1))
+        if window_end < last - 1:
+            pages.append(None)
+        pages.append(last)
+
+    links = []
+    for page_number in pages:
+        links.append(
+            {
+                "number": page_number,
+                "is_gap": page_number is None,
+                "is_current": page_number == current,
+                "url": build_url(page_number) if page_number and build_url else "",
+            }
+        )
+    return links
+
+
+def _paginate_queryset(request, queryset):
+    per_page = min(_parse_positive_int(request.GET.get("per"), DEFAULT_PER_PAGE), MAX_PER_PAGE)
+    paginator = Paginator(queryset, per_page)
+    requested_page = request.GET.get("page", 1)
+    page_notice = ""
+
+    try:
+        page_obj = paginator.page(requested_page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+        page_notice = "页码无效，已为你跳转到第 1 页。"
+    except EmptyPage:
+        target_page = paginator.num_pages or 1
+        page_obj = paginator.page(target_page)
+        page_notice = f"请求的页码超出范围，已为你跳转到第 {target_page} 页。"
+
+    params = request.GET.copy()
+    params["per"] = per_page
+    params.pop("page", None)
+
+    def build_url(page_number):
+        page_params = params.copy()
+        page_params["page"] = page_number
+        return f"{request.path}?{page_params.urlencode()}"
+
+    pagination = {
+        "has_other_pages": page_obj.has_other_pages(),
+        "page_links": _build_page_links(page_obj, build_url=build_url),
+        "current_page": page_obj.number,
+        "total_pages": paginator.num_pages,
+        "per_page": per_page,
+        "total_items": paginator.count,
+        "start_index": page_obj.start_index() if paginator.count else 0,
+        "end_index": page_obj.end_index() if paginator.count else 0,
+        "prev_url": build_url(page_obj.previous_page_number()) if page_obj.has_previous() else "",
+        "next_url": build_url(page_obj.next_page_number()) if page_obj.has_next() else "",
+    }
+    return page_obj, pagination, page_notice
+
+
 def track_list(request):
     tracks = Track.objects.filter(status=Track.STATUS_PUBLISHED)
-    return render(request, "tracks/list.html", {"tracks": tracks, "page_title": "全部音乐"})
+    page_obj, pagination, page_notice = _paginate_queryset(request, tracks)
+    return render(
+        request,
+        "tracks/list.html",
+        {
+            "tracks": page_obj.object_list,
+            "page_obj": page_obj,
+            "pagination": pagination,
+            "page_notice": page_notice,
+            "page_title": "全部音乐",
+        },
+    )
 
 
 def latest_tracks(request):
     tracks = Track.objects.filter(status=Track.STATUS_PUBLISHED).order_by("-created_at")
-    return render(request, "tracks/list.html", {"tracks": tracks, "page_title": "最新上传"})
+    page_obj, pagination, page_notice = _paginate_queryset(request, tracks)
+    return render(
+        request,
+        "tracks/list.html",
+        {
+            "tracks": page_obj.object_list,
+            "page_obj": page_obj,
+            "pagination": pagination,
+            "page_notice": page_notice,
+            "page_title": "最新上传",
+        },
+    )
 
 
+@login_required
 def upload_track(request):
     context = {
         "cover_themes": ["summer", "night", "forest", "ocean", "city", "sea", "signal", "sunset"],
@@ -115,9 +208,11 @@ def upload_track(request):
             context["form_data"] = request.POST
             return render(request, "tracks/upload.html", context)
 
+        lyrics_file = request.FILES.get("lyrics_file")
         upload_error = (
-            _validate_upload_file(audio_file, ALLOWED_AUDIO_EXTENSIONS, MAX_AUDIO_SIZE, "音频文件")
-            or _validate_upload_file(cover_image, ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_SIZE, "封面图片")
+            validate_upload_file(audio_file, ALLOWED_AUDIO_EXTENSIONS, MAX_AUDIO_SIZE, "音频文件", "audio")
+            or validate_upload_file(cover_image, ALLOWED_IMAGE_EXTENSIONS, MAX_IMAGE_SIZE, "封面图片", "image")
+            or validate_upload_file(lyrics_file, ALLOWED_LYRICS_EXTENSIONS, MAX_LYRICS_SIZE, "歌词文件", "lyrics")
         )
         if upload_error:
             context["error"] = upload_error
@@ -132,6 +227,13 @@ def upload_track(request):
             return render(request, "tracks/upload.html", context)
 
         artist = request.POST.get("artist", "").strip() or audio_metadata.get("artist", "")
+        if not artist and request.user.is_authenticated:
+            profile = getattr(request.user, "profile", None)
+            artist = (
+                (profile.display_name if profile and profile.display_name else "")
+                or request.user.get_full_name()
+                or request.user.get_username()
+            )
         description = request.POST.get("description", "").strip()
         if audio_metadata.get("album") and not description:
             description = f"专辑：{audio_metadata['album']}"
@@ -147,6 +249,7 @@ def upload_track(request):
 
         track = Track.objects.create(
             title=title,
+            owner=request.user,
             artist=artist,
             description=description,
             cover_theme=request.POST.get("cover_theme", "summer").strip() or "summer",
@@ -157,7 +260,6 @@ def upload_track(request):
         )
 
         raw_lyrics = request.POST.get("lyrics_raw_text", "").strip()
-        lyrics_file = request.FILES.get("lyrics_file")
         lyric_status = request.POST.get("lyrics_status", TrackLyrics.STATUS_AVAILABLE)
         if lyric_status not in dict(TrackLyrics.STATUS_CHOICES):
             lyric_status = TrackLyrics.STATUS_AVAILABLE

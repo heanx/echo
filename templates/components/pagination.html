@@ -1,0 +1,50 @@
+{% if pagination.has_other_pages %}
+  <nav class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="分页导航">
+    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+      第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页，显示 {{ pagination.start_index }} - {{ pagination.end_index }} 项，共 {{ pagination.total_items }} 项
+    </p>
+    <div class="flex flex-wrap items-center gap-2">
+      {% if pagination.prev_url %}
+        <a href="{{ pagination.prev_url }}"
+           hx-get="{{ pagination.prev_url }}"
+           hx-select="#main-content"
+           hx-target="#main-content"
+           hx-swap="outerHTML"
+           hx-push-url="true"
+           class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-semibold transition hover:border-brand hover:text-brand dark:border-zinc-700">
+          上一页
+        </a>
+      {% endif %}
+
+      {% for link in pagination.page_links %}
+        {% if link.is_gap %}
+          <span class="px-2 text-sm text-zinc-400">...</span>
+        {% elif link.is_current %}
+          <span class="rounded-lg bg-brand px-3 py-2 text-sm font-bold text-white">{{ link.number }}</span>
+        {% else %}
+          <a href="{{ link.url }}"
+             hx-get="{{ link.url }}"
+             hx-select="#main-content"
+             hx-target="#main-content"
+             hx-swap="outerHTML"
+             hx-push-url="true"
+             class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-semibold transition hover:border-brand hover:text-brand dark:border-zinc-700">
+            {{ link.number }}
+          </a>
+        {% endif %}
+      {% endfor %}
+
+      {% if pagination.next_url %}
+        <a href="{{ pagination.next_url }}"
+           hx-get="{{ pagination.next_url }}"
+           hx-select="#main-content"
+           hx-target="#main-content"
+           hx-swap="outerHTML"
+           hx-push-url="true"
+           class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-semibold transition hover:border-brand hover:text-brand dark:border-zinc-700">
+          下一页
+        </a>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}

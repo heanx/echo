@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-md rounded-lg bg-zinc-50 p-6 dark:bg-zinc-950">
+  <h1 class="text-2xl font-black">登录</h1>
+  <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">登录后可以上传、评论、点赞和管理自己的内容。</p>
+  <form method="post" class="mt-6 space-y-4">
+    {% csrf_token %}
+    {% for field in form %}
+      {% if field.name == "remember_me" %}
+        <label class="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+          {{ field }}
+          <span>{{ field.label }}</span>
+        </label>
+      {% else %}
+        <label class="block">
+          <span class="mb-2 block text-sm font-semibold">{{ field.label }}</span>
+          {{ field }}
+          {% if field.errors %}<span class="mt-1 block text-xs text-rose-500">{{ field.errors|join:" " }}</span>{% endif %}
+        </label>
+      {% endif %}
+    {% endfor %}
+    {% if form.non_field_errors %}<div class="text-sm text-rose-500">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <div class="flex items-center justify-between gap-3">
+      <button type="submit" class="rounded-full bg-brand px-5 py-2 font-bold text-white">登录</button>
+      <span class="text-xs text-zinc-500">浏览器会按自身设置提示保存密码。</span>
+    </div>
+  </form>
+  <p class="mt-4 text-sm text-zinc-500 dark:text-zinc-400">还没有账号？<a href="{% url 'register' %}" class="text-brand">注册</a></p>
+</section>
+{% endblock %}

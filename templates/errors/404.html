@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}页面不存在 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto flex min-h-full max-w-2xl items-center justify-center py-8">
+  {% include "components/empty_state.html" with icon="warning" title="页面不存在" description="你访问的地址可能已经失效，或者这页还没有在 Echo 里落地。" action_href="/" action_hx_get="/" action_label="回到首页" %}
+</section>
+{% endblock %}

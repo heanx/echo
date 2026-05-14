@@ -12,7 +12,9 @@
     {% for album in albums %}
       {% include "components/album_card.html" with album=album %}
     {% empty %}
-      <div class="col-span-full rounded-lg bg-zinc-100 p-6 text-sm text-zinc-500 dark:bg-zinc-950">还没有专辑。运行 python manage.py seed_demo 创建测试数据。</div>
+      <div class="col-span-full">
+        {% include "components/empty_state.html" with icon="music" title="还没有专辑" description="运行 `python manage.py seed_demo` 可以快速生成演示合集数据。" action_href="/tracks/upload/" action_label="先上传音乐" %}
+      </div>
     {% endfor %}
   </div>
 </section>

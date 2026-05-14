@@ -1,14 +1,22 @@
+def _get_profile(user):
+    if not user.is_authenticated:
+        return None
+    try:
+        return user.profile
+    except Exception:
+        return None
+
+
 def _get_display_name(user):
-    if user.is_authenticated:
-        return user.get_full_name() or user.get_username() or "Echo 用户"
-    return "Echo 用户"
+    if not user.is_authenticated:
+        return "Echo 用户"
+    profile = _get_profile(user)
+    profile_name = profile.display_name if profile and profile.display_name else ""
+    return profile_name or user.get_full_name() or user.get_username() or "Echo 用户"
 
 
 def _get_avatar_url(user):
-    if not user.is_authenticated:
-        return ""
-
-    profile = getattr(user, "profile", None)
+    profile = _get_profile(user)
     avatar = getattr(profile, "avatar", None)
     if not avatar:
         return ""

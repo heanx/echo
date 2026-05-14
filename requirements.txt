@@ -1,1 +1,2 @@
-Django==3.2.25
+Django==5.2.13
+Pillow==10.4.0

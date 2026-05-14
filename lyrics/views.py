@@ -1,10 +1,17 @@
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from tracks.models import Track
+from tracks.upload_validation import (
+    ALLOWED_LYRICS_EXTENSIONS,
+    MAX_LYRICS_SIZE,
+    validate_upload_file,
+)
 
 from .models import TrackLyrics
 
 
+@login_required
 def upload_lyrics(request):
     tracks = Track.objects.all()[:50]
     lyric_statuses = TrackLyrics.STATUS_CHOICES
@@ -20,6 +27,19 @@ def upload_lyrics(request):
             lyric_status = TrackLyrics.STATUS_AVAILABLE
         raw_text = request.POST.get("raw_text", "").strip()
         source_file = request.FILES.get("source_file")
+        upload_error = validate_upload_file(source_file, ALLOWED_LYRICS_EXTENSIONS, MAX_LYRICS_SIZE, "歌词文件", "lyrics")
+        if upload_error:
+            return render(
+                request,
+                "lyrics/upload.html",
+                {
+                    "tracks": tracks,
+                    "selected_track": selected_track,
+                    "lyric_statuses": lyric_statuses,
+                    "lyrics_kinds": TrackLyrics.KIND_CHOICES,
+                    "error": upload_error,
+                },
+            )
         if lyric_status != TrackLyrics.STATUS_AVAILABLE:
             raw_text = ""
             source_file = None

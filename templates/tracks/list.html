@@ -7,17 +7,27 @@
   <div class="mb-5 flex items-center justify-between">
     <div>
       <h1 class="text-3xl font-black">{{ page_title }}</h1>
-      <p class="mt-1 text-sm text-zinc-500">浏览 Echo 社区中的音频作品。</p>
+      <p class="mt-1 text-sm text-zinc-500">浏览 Echo 社区中的音频作品。支持 `?page=` 和 `?per=` 参数分页。</p>
     </div>
     <a href="{% url 'tracks:upload' %}" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">上传音乐</a>
   </div>
+
+  {% if page_notice %}
+    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+      {{ page_notice }}
+    </div>
+  {% endif %}
 
   <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
     {% for track in tracks %}
       {% include "components/track_row.html" with track=track %}
     {% empty %}
-      <div class="p-6 text-sm text-zinc-500">还没有音乐。先上传一首，或运行 python manage.py seed_demo。</div>
+      <div class="p-4">
+        {% include "components/empty_state.html" with icon="music" title="还没有音乐" description="先上传一首作品，或者运行 `python manage.py seed_demo` 生成演示数据。" action_href="/tracks/upload/" action_label="上传音乐" %}
+      </div>
     {% endfor %}
   </div>
+
+  {% include "components/pagination.html" with pagination=pagination %}
 </section>
 {% endblock %}

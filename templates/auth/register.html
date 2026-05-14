@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}注册 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-md rounded-lg bg-zinc-50 p-6 dark:bg-zinc-950">
+  <h1 class="text-2xl font-black">注册</h1>
+  <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">创建你的 Echo 账号，之后可以上传、评论和点赞。</p>
+  <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" data-avatar-form>
+    {% csrf_token %}
+    {% for field in form %}
+      {% if field.name == "avatar" %}
+        <div class="block">
+          <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-semibold">{{ field.label }}</label>
+          {{ field }}
+          <span class="mt-1 block text-xs text-zinc-500">支持 JPG、PNG、WEBP，最大 4MB。头像文件会保存到媒体目录，数据库只记录文件路径。</span>
+          {% include "components/avatar_cropper.html" with input_id=field.id_for_label %}
+          {% if field.errors %}<span class="mt-1 block text-xs text-rose-500">{{ field.errors|join:" " }}</span>{% endif %}
+        </div>
+      {% else %}
+        <label class="block">
+          <span class="mb-2 block text-sm font-semibold">{{ field.label }}</span>
+          {{ field }}
+          {% if field.help_text %}
+            <span class="mt-1 block text-xs text-zinc-500">{{ field.help_text|safe }}</span>
+          {% endif %}
+          {% if field.errors %}<span class="mt-1 block text-xs text-rose-500">{{ field.errors|join:" " }}</span>{% endif %}
+        </label>
+      {% endif %}
+    {% endfor %}
+    {% if form.non_field_errors %}<div class="text-sm text-rose-500">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <button type="submit" class="rounded-full bg-brand px-5 py-2 font-bold text-white">注册</button>
+  </form>
+  <p class="mt-4 text-sm text-zinc-500 dark:text-zinc-400">已经有账号？<a href="{% url 'login' %}" class="text-brand">登录</a></p>
+</section>
+<script src="{% static 'js/avatar-cropper.js' %}"></script>
+{% endblock %}

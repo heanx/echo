@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}资料设置 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-xl rounded-lg bg-zinc-50 p-6 dark:bg-zinc-950">
+  <h1 class="text-2xl font-black">资料设置</h1>
+  <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" data-avatar-form>
+    {% csrf_token %}
+    {% for field in form %}
+      {% if field.name == "avatar" %}
+        <div class="block">
+          <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-semibold">{{ field.label }}</label>
+          {{ field }}
+          <span class="mt-1 block text-xs text-zinc-500">支持 JPG、PNG、WEBP，最大 4MB。提交前可以预览和裁剪。</span>
+          {% include "components/avatar_cropper.html" with input_id=field.id_for_label %}
+          {% if field.errors %}<span class="mt-1 block text-xs text-rose-500">{{ field.errors|join:" " }}</span>{% endif %}
+        </div>
+      {% else %}
+        <label class="block">
+          <span class="mb-2 block text-sm font-semibold">{{ field.label }}</span>
+          {{ field }}
+          {% if field.errors %}<span class="mt-1 block text-xs text-rose-500">{{ field.errors|join:" " }}</span>{% endif %}
+        </label>
+      {% endif %}
+    {% endfor %}
+    <button type="submit" class="rounded-full bg-brand px-5 py-2 font-bold text-white">保存</button>
+  </form>
+</section>
+<script src="{% static 'js/avatar-cropper.js' %}"></script>
+{% endblock %}

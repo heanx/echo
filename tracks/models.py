@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -14,6 +15,7 @@ class Track(models.Model):
     ]
 
     title = models.CharField("标题", max_length=200)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="tracks")
     artist = models.CharField("作者", max_length=120, blank=True)
     description = models.TextField("简介", blank=True)
     audio_file = models.FileField("音频文件", upload_to="tracks/audio/", blank=True, null=True)
@@ -59,4 +61,9 @@ class Track(models.Model):
 
     @property
     def uploader(self):
+        if self.owner:
+            profile = getattr(self.owner, "profile", None)
+            if profile and profile.display_name:
+                return profile.display_name
+            return self.owner.get_full_name() or self.owner.get_username()
         return self.artist or "Echo 用户"
