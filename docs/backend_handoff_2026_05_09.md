@@ -1,6 +1,6 @@
 # Echo 后端交接文档
 
-更新时间：2026-05-11  
+更新时间：2026-05-15
 适用对象：下一轮负责后端或全栈对接的 Codex
 
 ## 1. 当前项目状态
@@ -14,9 +14,9 @@ Echo 是 Django + SQLite3 + Tailwind CSS + HTMX + 原生 JavaScript 的轻量级
 - SQLite WAL 连接配置
 - demo 数据命令 `seed_demo`
 - 首页、音乐列表、上传、详情、评论页、歌词页、歌词上传页
-- 播放量上报接口和基础回归测试
+- 搜索页、顶部搜索建议、播放量上报接口和基础回归测试
 
-当前版本已经达到大作业“初步可用”阶段：本地运行后可完成浏览、上传、播放、歌词、评论、播放量统计等核心演示流程。
+当前版本已经达到大作业“主要功能闭环可演示”阶段：本地运行后可完成浏览、上传、播放、歌词、评论、搜索、播放队列管理、播放量统计等核心演示流程。
 
 项目入口：
 
@@ -61,7 +61,7 @@ shell_recent_tracks
 shell_queue_tracks
 ```
 
-两者目前都来自最近更新的 published tracks，后续真实用户系统落地后应替换为用户维度的播放历史和播放队列。
+`shell_recent_tracks` 目前仍来自最近更新的 published tracks。`shell_queue_tracks` 只作为首屏 fallback；右侧播放列表和上一首/下一首已经改为前端 `playQueue` 驱动。后续如果进入登录用户维度的真实播放历史和服务端队列，再替换这两处来源。
 
 ## 3. URL 总览
 
@@ -82,6 +82,8 @@ shell_queue_tracks
 /                         -> core.views.home, name="home"
 /lyrics/                  -> core.views.lyrics, name="lyrics"
 /comments/                -> core.views.comments, name="comments"
+/search/                  -> core.views.search_view, name="search"
+/search/suggest/          -> core.views.search_suggest_view, name="search_suggest"
 ```
 
 `tracks.urls`：
@@ -677,21 +679,22 @@ docs/handoff_frontend_backend.md
 ### 高优先级
 
 - 新 GUI 响应式规范尚未完整落地，需要统一 `960px / 820px / 480px` 等 CSS/JS 断点。
-- 真实用户登录系统还未落地，上传、评论、点赞仍未完整绑定真实用户。
-- 搜索系统还未产品化，顶部搜索框需要接稳定结果页。
+- 评论回复 UI 和评论点赞仍未完整产品化，后端已有基础字段和关系。
+- 歌单 CRUD、用户主页扩展、通知系统还未完成。
 - 管理后台需要完善 Django Admin 配置。
 
 ### 中优先级
 
 - 评论回复 UI 仍较初级，后端支持 `parent`，但前端还没有完整回复表单。
 - 评论点赞还没有接口，需要基于 `TrackCommentReaction` 增加创建/撤销逻辑，并用 `F()` 更新 `like_count`。
-- 真实播放队列模型还未落地，当前上一首/下一首仍以 DOM 队列为准。
+- 播放队列当前为前端 `playQueue` + localStorage 持久化；后续可升级为登录用户维度的服务端队列。
 - `/static/demo/demo-audio.mp3` 只是回退路径，当前项目不保证这个静态文件真实存在。
 
 ### 低优先级
 
 - `shell_recent_tracks` 目前只是按 `Track.updated_at` 排序，不是真实播放历史。
 - 如果进入多人使用阶段，建议从 SQLite 迁移到 PostgreSQL。
+- 开发环境媒体响应支持 `Range` 请求；不要把 DEBUG `/media/...` 路由改回默认静态响应，否则本地 seek 可能退回 `0:00`。
 
 ## 14. 当前 Git 状态提示
 
@@ -1152,14 +1155,17 @@ data-track-plays="<track_id>"
 - 核心业务闭环已经形成：音频上传、列表展示、播放、播放量统计、歌词展示、评论展示与提交。
 - 前端应用壳已具备类 SPA 体验：顶部栏、左侧音乐库、中部主内容、右侧上下文、底部播放器。
 - 播放器状态修复了歌词/评论跟随当前 track 的问题，并避免异步请求覆盖。
+- 搜索系统已落地：`/search/` 支持摘要页、类型页、分页、相关性排序，顶部搜索框支持输入建议。
+- 右侧播放列表已改为 `playQueue` 驱动，歌曲行和卡片支持右键菜单。
+- 开发环境媒体响应已支持 Range seek。
 - 歌词页完成换行、字体、当前行样式优化。
-- 基础回归测试位于 `tests/test_views.py`，共 18 个测试。
+- 基础回归测试位于 `tests/test_views.py`，当前共 45 个测试。
 
 下一阶段主线：
 
 1. 新 GUI 响应式规范落地。
-2. 真实用户登录系统。
-3. 搜索系统。
-4. 真实播放队列和播放模式。
-5. 评论回复/点赞。
-6. 管理后台。
+2. 评论回复/点赞。
+3. 歌单 CRUD。
+4. 用户主页和通知系统。
+5. 管理后台。
+6. 播放队列登录用户维度持久化。

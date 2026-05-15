@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block main %}
-<section class="overflow-hidden rounded-lg bg-zinc-100 shadow-sm dark:bg-zinc-950" data-play-queue="hero-track">
+<section class="overflow-hidden rounded-lg bg-zinc-100 shadow-sm dark:bg-zinc-950" data-play-queue="hero-track" data-context-menu-kind="browse">
   <div class="relative min-h-[250px] px-6 py-8 sm:px-8">
     <div class="absolute inset-0 bg-[linear-gradient(115deg,rgba(99,102,241,.52),rgba(14,165,233,.18)_42%,rgba(34,197,94,.2)),linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.72))]"></div>
     <div class="{% if hero_track and not hero_track.cover_url %}cover-{{ hero_track.cover_theme|default:'sunset' }}{% elif not hero_track %}cover-sunset{% endif %} absolute inset-0 bg-cover bg-center opacity-45 mix-blend-overlay"
@@ -37,7 +37,7 @@
   </div>
 </section>
 
-<section class="mt-6" data-play-queue="recommended-tracks">
+<section class="mt-6" data-play-queue="recommended-tracks" data-context-menu-kind="browse">
   <div class="mb-4 flex items-center justify-between">
     <h2 class="text-xl font-black">为你推荐</h2>
     <a href="{% url 'tracks:list' %}" class="text-sm font-semibold text-brand">查看全部</a>
@@ -53,7 +53,7 @@
   </div>
 </section>
 
-<section class="mt-7" data-play-queue="latest-tracks">
+<section class="mt-7" data-play-queue="latest-tracks" data-context-menu-kind="browse">
   <div class="mb-4 flex items-center justify-between">
     <h2 class="text-xl font-black">最新动态</h2>
     <a href="{% url 'tracks:latest' %}" class="text-sm font-semibold text-brand">查看全部</a>

@@ -1,6 +1,6 @@
 # Echo 前端动态资源与响应式约定
 
-更新时间：2026-05-11
+更新时间：2026-05-15
 
 ## 动态资源入口
 
@@ -32,7 +32,16 @@
 - `shell_recent_tracks`
 - `shell_queue_tracks`
 
-左侧栏“最近播放”当前先从数据库中的 `Track.updated_at` 取最近 3 条，右侧播放列表使用最近 10 条 published track。后续可以替换为真正的播放历史和真实播放队列模型。
+左侧栏“最近播放”当前先从数据库中的 `Track.updated_at` 取最近 3 条。`shell_queue_tracks` 仍可作为首屏 fallback，但右侧播放列表的真实状态已经改为前端 `playQueue` 驱动。
+
+`static/js/echo-shell.js` 负责维护：
+
+- `playQueue`
+- `playQueueIndex`
+- `playQueueName`
+- `localStorage.echo_play_queue`
+
+右侧 `#playlist-track-list` 会由 `renderPlaylistQueue()` 重绘，播放队列计数同步自 `playQueue.length`。继续改模板时不要把右侧栏重新绑定为服务端固定列表。
 
 ## 响应式布局
 
@@ -57,6 +66,34 @@
 - 进度条视觉可以保持细线，但触摸响应区需要至少 `24px` 高。
 
 当前代码只做了局部修复，尚未完整落地以上规范。继续改播放栏前，优先统一 JS/CSS 断点，避免右侧栏和底部栏各用一套规则。
+
+## 2026-05-15 搜索与播放队列约定
+
+可播放行或卡片的外层需要带 `[data-echo-track]`，常用字段保持：
+
+```html
+data-id
+data-src
+data-title
+data-artist
+data-cover
+data-cover-url
+```
+
+列表容器用 `[data-play-queue]` 标识队列来源，例如：
+
+- `recent-tracks`
+- `sidebar-playlist`
+- `library-tracks`
+- `latest-page-tracks`
+- `search-tracks`
+- `search-suggestions`
+
+点击歌曲时，`resolveQueueContext()` 会从最近的 `[data-play-queue]` 容器收集队列并去重。右键菜单同样基于 `[data-echo-track]`，当前支持“立即播放 / 下一首播放 / 加入播放队列 / 从播放队列移除 / 查看歌曲”。
+
+顶部搜索输入通过 `/search/suggest/` 获取建议，浮层自身也带 `data-play-queue="search-suggestions"`，因此建议中的歌曲点击后会直接进入播放队列。搜索结果页提交到 `/search/`，支持全部、歌曲、专辑、用户类型页和分页。
+
+开发环境媒体响应由 `core.views.serve_media_range()` 接管，`DEBUG` 下 `/media/...` 支持 `Range` 请求和 `206 Partial Content`，用于保证本地音频进度条 seek 稳定。
 
 ## 2026-05-10 前端最新状态
 
@@ -95,13 +132,7 @@ currentTrackId -> localStorage.echo_current_track_id -> URLSearchParams(track)
 
 ### 播放列表控制
 
-播放列表以右侧栏 DOM 顺序为准：
-
-```text
-#playlist-track-list .playlist-track[data-echo-track]
-```
-
-上一首、下一首和播放结束自动下一首都调用 `playPlaylistOffset(offset)`。如果当前播放曲目不在列表中，下一首从列表第一首开始，上一首从最后一首开始。
+播放列表以 `playQueue` 为准，右侧栏只是该队列的可视化结果。上一首、下一首和播放结束自动下一首都调用队列逻辑；如果当前播放曲目不在队列中，会根据当前触发入口重新建立队列。
 
 ### 进度条与歌词
 

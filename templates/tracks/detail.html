@@ -3,7 +3,7 @@
 {% block title %}{{ track.title }} - Echo{% endblock %}
 
 {% block main %}
-<article class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]" data-play-queue="track-detail">
+<article class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]" data-play-queue="track-detail" data-context-menu-kind="detail">
   <div>
     <div class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} aspect-square rounded-lg bg-cover bg-center"
          {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}></div>

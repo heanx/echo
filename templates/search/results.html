@@ -3,49 +3,41 @@
 {% block title %}搜索 - Echo{% endblock %}
 
 {% block main %}
-<section class="mx-auto max-w-6xl space-y-8">
-  <div>
-    <h1 class="text-3xl font-black">搜索</h1>
-    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{% if query %}“{{ query }}” 的结果{% else %}输入关键词搜索歌曲、专辑和用户{% endif %}</p>
+<section class="mx-auto max-w-6xl space-y-5">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div class="min-w-0">
+      <h1 class="truncate text-3xl font-black">{% if query %}{{ query }}{% else %}搜索{% endif %}</h1>
+      <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+        {% if query %}找到 {{ total_tracks|add:total_albums|add:total_users }} 个相关结果{% else %}输入关键词搜索歌曲、专辑和用户{% endif %}
+      </p>
+    </div>
+    {% if query %}
+      <form class="flex h-12 w-full items-center gap-3 rounded-full border border-zinc-300 bg-zinc-100 px-4 focus-within:border-zinc-900 sm:max-w-md dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-white" action="{% url 'search' %}">
+        <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input name="q" value="{{ query }}" class="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" autocomplete="off" aria-label="搜索关键词">
+        <button type="submit" class="rounded-full bg-zinc-950 px-4 py-1.5 text-sm font-bold text-white transition hover:bg-brand dark:bg-white dark:text-zinc-950 dark:hover:bg-brand dark:hover:text-white">搜索</button>
+      </form>
+    {% endif %}
   </div>
-  <section data-play-queue="search-tracks">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-black">歌曲</h2>
-      <span class="text-sm text-zinc-500">{{ tracks|length }} 条</span>
+
+  {% if page_notice %}
+    <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/80 dark:text-amber-200">{{ page_notice }}</div>
+  {% endif %}
+
+  {% include "search/type_tabs.html" %}
+
+  {% if not query %}
+    <div class="rounded-lg bg-zinc-100 px-6 py-12 text-center dark:bg-zinc-950/70">
+      {% include "components/empty_state.html" with icon="search" title="输入关键词开始搜索" description="搜索歌曲标题、歌手、专辑名称或上传者。" %}
     </div>
-    <div class="overflow-hidden rounded-lg bg-zinc-50 dark:bg-zinc-950">
-      {% for track in tracks %}
-        {% include "components/track_row.html" with track=track %}
-      {% empty %}
-        {% include "components/empty_state.html" with icon="search" title="没有找到歌曲" description="试试更短的关键词，或者换歌名、歌手名再搜一次。" %}
-      {% endfor %}
-    </div>
-  </section>
-  <section>
-    <h2 class="mb-4 text-xl font-black">专辑</h2>
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
-      {% for album in albums %}
-        {% include "components/album_card.html" with album=album %}
-      {% empty %}
-        <p class="text-sm text-zinc-500">没有找到相关专辑。</p>
-      {% endfor %}
-    </div>
-  </section>
-  <section>
-    <h2 class="mb-4 text-xl font-black">用户</h2>
-    <div class="grid gap-3">
-      {% for user in users %}
-        <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-          <span class="cover-eclipse grid h-12 w-12 place-items-center rounded-full font-black text-white">{{ user.profile.name|first|upper }}</span>
-          <span class="min-w-0">
-            <span class="block truncate font-bold">{{ user.profile.name }}</span>
-            <span class="block truncate text-sm text-zinc-500">@{{ user.username }}</span>
-          </span>
-        </a>
-      {% empty %}
-        <p class="text-sm text-zinc-500">没有找到相关用户。</p>
-      {% endfor %}
-    </div>
-  </section>
+  {% elif active_type == "tracks" %}
+    {% include "search/type_tracks.html" %}
+  {% elif active_type == "albums" %}
+    {% include "search/type_albums.html" %}
+  {% elif active_type == "users" %}
+    {% include "search/type_users.html" %}
+  {% else %}
+    {% include "search/type_summary.html" %}
+  {% endif %}
 </section>
 {% endblock %}

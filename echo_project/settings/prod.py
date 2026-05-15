@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403

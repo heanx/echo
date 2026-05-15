@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -36,7 +37,7 @@ class TrackComment(models.Model):
 
     track = models.ForeignKey("tracks.Track", on_delete=models.CASCADE, related_name="comments")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies")
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="child_comments")
     reply_to_user_name = models.CharField(max_length=120, blank=True)
     author_name = models.CharField(max_length=120, blank=True)
     body = models.TextField()
@@ -102,10 +103,6 @@ class TrackComment(models.Model):
 
     @property
     def replies_count(self):
-        return self.reply_count
-
-    @property
-    def replies(self):
         return self.reply_count
 
     @property

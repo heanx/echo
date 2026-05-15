@@ -1,3 +1,4 @@
+// -*- coding: utf-8 -*-
 (function () {
   const allowedExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
   const outputSize = 512;

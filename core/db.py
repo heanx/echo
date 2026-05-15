@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.db.backends.signals import connection_created
 
 

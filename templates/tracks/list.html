@@ -18,7 +18,7 @@
     </div>
   {% endif %}
 
-  <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+  <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950" data-play-queue="{% if page_title == '最新上传' %}latest-page-tracks{% else %}library-tracks{% endif %}" data-context-menu-kind="library">
     {% for track in tracks %}
       {% include "components/track_row.html" with track=track %}
     {% empty %}

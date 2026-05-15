@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -111,6 +112,10 @@ LANGUAGE_CODE = "zh-hans"
 TIME_ZONE = "Asia/Shanghai"
 USE_I18N = True
 USE_TZ = True
+
+# 显式声明文件编码，防止工具误判
+FILE_CHARSET = "utf-8"
+DEFAULT_CHARSET = "utf-8"
 
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]

@@ -1,11 +1,17 @@
+# -*- coding: utf-8 -*-
 import base64
+import tempfile
 from io import BytesIO
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from albums.models import Album
+from comments.models import TrackComment
+from core.views import serve_media_range
 from lyrics.models import TrackLyrics
 from tracks.models import Track
 
@@ -169,6 +175,100 @@ class TrackListPaginationTests(TestCase):
         self.assertContains(response, "请求的页码超出范围")
 
 
+class SearchSystemTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.owner = User.objects.create_user(username="needle-owner", password="pass")
+        cls.owner.profile.display_name = "Needle Listener"
+        cls.owner.profile.save(update_fields=["display_name"])
+        Track.objects.create(
+            title="Needle Song",
+            artist="Other Artist",
+            owner=cls.owner,
+            description="Quiet match",
+            status=Track.STATUS_PUBLISHED,
+        )
+        Track.objects.create(
+            title="Other Song",
+            artist="Needle Artist",
+            description="Another match",
+            status=Track.STATUS_PUBLISHED,
+        )
+        Track.objects.create(
+            title="Hidden Needle",
+            artist="Hidden Artist",
+            status=Track.STATUS_HIDDEN,
+        )
+        for index in range(13):
+            Album.objects.create(title=f"Needle Album {index:02d}", creator="Echo")
+        for index in range(13):
+            User.objects.create_user(username=f"needle-user-{index:02d}", password="pass")
+
+    def test_summary_search_returns_published_tracks_and_totals(self):
+        response = self.client.get(reverse("search"), {"q": "needle"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Needle Song")
+        self.assertNotContains(response, "Hidden Needle")
+        self.assertEqual(response.context["total_tracks"], 2)
+        self.assertEqual(response.context["total_albums"], 13)
+        self.assertGreaterEqual(response.context["total_users"], 14)
+
+    def test_track_search_orders_title_match_before_artist_match(self):
+        response = self.client.get(reverse("search"), {"q": "needle", "type": "tracks"})
+        titles = [track.title for track in response.context["tracks"]]
+        self.assertEqual(titles[:2], ["Needle Song", "Other Song"])
+        self.assertContains(response, "data-play-queue=\"search-tracks\"")
+
+    def test_search_type_pages_keep_all_tab_counts(self):
+        response = self.client.get(reverse("search"), {"q": "needle", "type": "albums"})
+        self.assertEqual(response.context["total_tracks"], 2)
+        self.assertEqual(response.context["total_albums"], 13)
+        self.assertGreaterEqual(response.context["total_users"], 14)
+        self.assertContains(response, "歌曲<span")
+
+    def test_album_and_user_search_paginate_by_twelve(self):
+        album_response = self.client.get(reverse("search"), {"q": "needle", "type": "albums"})
+        user_response = self.client.get(reverse("search"), {"q": "needle", "type": "users"})
+        self.assertEqual(len(album_response.context["albums"]), 12)
+        self.assertEqual(len(user_response.context["users"]), 12)
+
+    def test_search_query_is_trimmed_to_two_hundred_chars(self):
+        response = self.client.get(reverse("search"), {"q": "n" * 240})
+        self.assertEqual(len(response.context["query"]), 200)
+
+    def test_search_suggestions_return_terms_and_tracks(self):
+        response = self.client.get(reverse("search_suggest"), {"q": "needle"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["query"], "needle")
+        self.assertIn("Needle Song", payload["suggestions"])
+        self.assertEqual(payload["tracks"][0]["title"], "Needle Song")
+        self.assertNotIn("Hidden Needle", [track["title"] for track in payload["tracks"]])
+
+    def test_empty_search_suggestions_are_empty(self):
+        response = self.client.get(reverse("search_suggest"), {"q": "   "})
+        self.assertEqual(response.json(), {"query": "", "suggestions": [], "tracks": []})
+
+
+class MediaRangeTests(TestCase):
+    def test_debug_media_serves_byte_ranges(self):
+        with tempfile.TemporaryDirectory() as media_root:
+            audio_path = Path(media_root) / "tracks" / "audio"
+            audio_path.mkdir(parents=True)
+            file_path = audio_path / "sample.mp3"
+            file_path.write_bytes(b"0123456789abcdef")
+
+            with override_settings(DEBUG=True, MEDIA_ROOT=media_root):
+                request = RequestFactory().get("/media/tracks/audio/sample.mp3", HTTP_RANGE="bytes=4-7")
+                response = serve_media_range(request, "tracks/audio/sample.mp3")
+                body = b"".join(response.streaming_content)
+
+                self.assertEqual(response.status_code, 206)
+                self.assertEqual(response["Accept-Ranges"], "bytes")
+                self.assertEqual(response["Content-Range"], "bytes 4-7/16")
+                self.assertEqual(body, b"4567")
+
+
 class UploadSecurityValidationTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="upload-security", password="pass")
@@ -214,6 +314,30 @@ class UploadSecurityValidationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "歌词文件")
 
+    def test_uploaded_lyrics_source_file_keeps_content_after_raw_text_read(self):
+        track = Track.objects.create(title="Lyrics Track", artist="A", status=Track.STATUS_PUBLISHED)
+        source_text = "[00:01.00] hello\n[00:02.00] world\n"
+        response = self.client.post(
+            reverse("lyrics:upload"),
+            {
+                "track": track.pk,
+                "status": TrackLyrics.STATUS_AVAILABLE,
+                "source_file": SimpleUploadedFile("lyrics.lrc", source_text.encode("utf-8"), content_type="text/plain"),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        lyrics = TrackLyrics.objects.get(track=track)
+        with lyrics.source_file.open("rb") as saved_file:
+            self.assertEqual(saved_file.read().decode("utf-8"), source_text)
+
+    def test_comment_child_comments_relation_does_not_shadow_reply_count(self):
+        track = Track.objects.create(title="Comment Track", artist="A", status=Track.STATUS_PUBLISHED)
+        parent = TrackComment.objects.create(track=track, author_name="A", body="Parent")
+        reply = TrackComment.objects.create(track=track, parent=parent, author_name="B", body="Reply")
+        parent.reply_count = 1
+        parent.save(update_fields=["reply_count"])
+        self.assertEqual(parent.replies_count, 1)
+        self.assertEqual(list(parent.child_comments.all()), [reply])
 
     def test_uploaded_track_is_owned_by_current_user(self):
         audio_file = SimpleUploadedFile("ok.mp3", b"ID3" + b"\x00" * 32, content_type="audio/mpeg")

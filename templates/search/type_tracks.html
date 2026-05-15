@@ -1,0 +1,15 @@
+<section data-play-queue="search-tracks" data-context-menu-kind="search">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">歌曲</h2>
+    <span class="shrink-0 text-sm font-medium text-zinc-500">{% if pagination.total_items %}第 {{ pagination.start_index }} - {{ pagination.end_index }} 项，共 {{ pagination.total_items }} 条{% endif %}</span>
+  </div>
+  <div class="rounded-lg bg-zinc-100 p-1 dark:bg-zinc-950/70">
+    {% for track in tracks %}
+      {% include "search/track_result_row.html" with track=track %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到歌曲" description="试试更短的关键词，或者换歌名、歌手名再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+{% include "components/pagination.html" %}

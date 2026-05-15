@@ -1,15 +1,16 @@
-<article class="grid w-full grid-cols-[48px_minmax(0,1fr)_64px_40px] items-center gap-4 px-4 py-3 transition hover:bg-zinc-200/70 dark:hover:bg-zinc-900 md:grid-cols-[48px_minmax(140px,1fr)_minmax(110px,260px)_70px_70px_40px]">
+<article
+  class="grid w-full grid-cols-[48px_minmax(0,1fr)_64px_40px] items-center gap-4 px-4 py-3 transition hover:bg-zinc-200/70 dark:hover:bg-zinc-900 md:grid-cols-[48px_minmax(140px,1fr)_minmax(110px,260px)_70px_70px_40px]"
+  data-echo-track
+  data-src="{{ track.audio_url|default:'' }}"
+  data-id="{{ track.id }}"
+  data-title="{{ track.title|escape }}"
+  data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
+  data-cover="{{ track.cover_theme|default:'summer' }}"
+  data-cover-url="{{ track.cover_url }}">
   <button
     type="button"
     class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} grid h-12 w-12 place-items-center rounded-lg bg-cover bg-center text-white"
     {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}
-    data-echo-track
-    data-src="{{ track.audio_url|default:'' }}"
-    data-id="{{ track.id }}"
-    data-title="{{ track.title|escape }}"
-    data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
-    data-cover="{{ track.cover_theme|default:'summer' }}"
-    data-cover-url="{{ track.cover_url }}"
     aria-label="播放 {{ track.title }}">
     <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
   </button>

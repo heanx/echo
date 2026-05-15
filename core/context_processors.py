@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 def _get_profile(user):
     if not user.is_authenticated:
         return None
