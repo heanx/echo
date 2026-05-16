@@ -1,7 +1,11 @@
 import base64
-from io import BytesIO
+import os
+import shutil
+import tempfile
+from io import BytesIO, StringIO
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -648,6 +652,48 @@ class PlaylistCrudTests(TestCase):
         self.client.force_login(other)
         response = self.client.get(reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
         self.assertEqual(response.status_code, 404)
+
+
+class MediaLifecycleTests(TestCase):
+    def setUp(self):
+        self.media_root = tempfile.mkdtemp()
+        self.override = override_settings(MEDIA_ROOT=self.media_root)
+        self.override.enable()
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.media_root, ignore_errors=True)
+
+    def test_track_delete_removes_uploaded_files(self):
+        track = Track.objects.create(
+            title="With Files",
+            artist="Echo",
+            status=Track.STATUS_PUBLISHED,
+            audio_file=SimpleUploadedFile("song.mp3", b"ID3" + b"\x00" * 32, content_type="audio/mpeg"),
+            cover_image=SimpleUploadedFile("cover.png", base64.b64decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+            ), content_type="image/png"),
+        )
+        audio_path = track.audio_file.path
+        cover_path = track.cover_image.path
+        self.assertTrue(os.path.exists(audio_path))
+        self.assertTrue(os.path.exists(cover_path))
+        track.delete()
+        self.assertFalse(os.path.exists(audio_path))
+        self.assertFalse(os.path.exists(cover_path))
+
+    def test_cleanup_orphan_media_dry_run_and_delete(self):
+        orphan_dir = os.path.join(self.media_root, "tracks", "audio")
+        os.makedirs(orphan_dir, exist_ok=True)
+        orphan_path = os.path.join(orphan_dir, "orphan.mp3")
+        with open(orphan_path, "wb") as handle:
+            handle.write(b"orphan")
+        output = StringIO()
+        call_command("cleanup_orphan_media", stdout=output)
+        self.assertIn("orphan.mp3", output.getvalue())
+        self.assertTrue(os.path.exists(orphan_path))
+        call_command("cleanup_orphan_media", "--delete", stdout=StringIO())
+        self.assertFalse(os.path.exists(orphan_path))
 
 
 @override_settings(DEBUG=False)

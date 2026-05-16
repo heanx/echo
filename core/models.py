@@ -1,8 +1,11 @@
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.templatetags.static import static
+
+from .file_cleanup import delete_filefield_file
 
 
 AVATAR_PRESET_CHOICES = [
@@ -83,3 +86,8 @@ class Notification(models.Model):
 def ensure_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance, display_name=instance.get_username())
+
+
+@receiver(post_delete, sender=UserProfile)
+def delete_profile_avatar(sender, instance, **kwargs):
+    delete_filefield_file(instance, "avatar")

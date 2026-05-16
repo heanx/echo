@@ -1,5 +1,9 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+from core.file_cleanup import delete_filefield_file
 
 
 class Album(models.Model):
@@ -95,3 +99,8 @@ class PlaylistTrack(models.Model):
 
     def __str__(self):
         return f"{self.playlist} - {self.track}"
+
+
+@receiver(post_delete, sender=Album)
+def delete_album_cover(sender, instance, **kwargs):
+    delete_filefield_file(instance, "cover_image")

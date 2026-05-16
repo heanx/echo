@@ -174,6 +174,10 @@
 20. 媒体文件生命周期管理
 - 删除曲目或歌词时同步清理关联文件
 - 清理孤儿媒体文件的管理命令
+- 状态：部分完成（2026-05-16）
+- 已完成：删除 Track / TrackLyrics / Album / UserProfile 时清理对应上传文件
+- 已完成：`cleanup_orphan_media` 管理命令，默认 dry-run，显式 `--delete` 才删除孤儿媒体文件
+- 待补：替换文件时清理旧文件
 
 ### P3 管理与审核
 
@@ -219,4 +223,4 @@ DJANGO_SETTINGS_MODULE=echo_project.settings.prod python -m django check
 结果：
 - Django check：通过
 - JS 语法检查：通过
-- 测试：58 / 58 通过（2026-05-16）
+- 测试：60 / 60 通过（2026-05-16）

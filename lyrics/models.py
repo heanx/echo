@@ -1,6 +1,10 @@
 import re
 
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+from core.file_cleanup import delete_filefield_file
 
 
 class TrackLyrics(models.Model):
@@ -103,3 +107,8 @@ def parse_lrc_or_text(raw_text):
         else:
             rows.append((index * 5000, line))
     return rows
+
+
+@receiver(post_delete, sender=TrackLyrics)
+def delete_lyrics_source_file(sender, instance, **kwargs):
+    delete_filefield_file(instance, "source_file")
