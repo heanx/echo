@@ -1,6 +1,6 @@
 # Echo 前端动态资源与响应式约定
 
-更新时间：2026-05-11
+更新时间：2026-05-16
 
 ## 动态资源入口
 
@@ -29,10 +29,47 @@
 
 `core.context_processors.user_status` 除用户状态外，也提供：
 
+- `user_avatar_url`
 - `shell_recent_tracks`
 - `shell_queue_tracks`
 
 左侧栏“最近播放”当前先从数据库中的 `Track.updated_at` 取最近 3 条，右侧播放列表使用最近 10 条 published track。后续可以替换为真正的播放历史和真实播放队列模型。
+
+## 账户与头像资源
+
+Phase 3 account 已接入真实用户头像资源。模板不要再只用用户名首字母或固定渐变作为头像来源。
+
+头像渲染优先级：
+
+1. `UserProfile.avatar` 上传图片。
+2. `UserProfile.avatar_preset` 系统预设头像。
+3. 首字母 fallback。
+
+统一读取入口：
+
+```text
+profile.avatar_url
+user_avatar_url
+```
+
+涉及模板：
+
+- `templates/base.html`
+- `templates/profile/detail.html`
+- `templates/profile/settings.html`
+- `templates/search/results.html`
+- `templates/auth/register.html`
+- `templates/components/avatar_cropper.html`
+
+头像编辑前端约定：
+
+- 注册页和资料设置页共用头像裁剪组件。
+- 选择上传文件或系统预设头像后都要能预览。
+- 当前头像在资料设置页支持 `裁剪`、`保留`、`下载`。
+- 选择系统预设头像会写入隐藏字段 `avatar_preset`。
+- 上传头像和预设头像互斥：上传新图片时清空预设；选择预设时清空上传图片。
+
+账户下拉菜单当前是全局设置菜单，不是账户资料菜单。用户资料入口放在个人主页卡片，“账户安全中心”负责 ID 和密码。
 
 ## 响应式布局
 

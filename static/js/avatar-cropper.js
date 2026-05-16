@@ -16,6 +16,33 @@
     error.classList.toggle("hidden", !message);
   }
 
+  function findInputClearButton(input) {
+    return Array.from(document.querySelectorAll("[data-avatar-input-clear]")).find(function (button) {
+      return button.dataset.avatarInputClear === input.id;
+    }) || null;
+  }
+
+  function presetGroupForInput(input) {
+    return Array.from(document.querySelectorAll("[data-avatar-presets]")).find(function (group) {
+      return group.dataset.inputId === input.id;
+    }) || null;
+  }
+
+  function setPreset(group, value) {
+    if (!group) return;
+    const hidden = group.closest(".block").querySelector("input[name='avatar_preset']");
+    if (hidden) hidden.value = value || "";
+    group.querySelectorAll("[data-avatar-preset]").forEach(function (button) {
+      button.classList.toggle("is-selected", button.dataset.avatarPreset === value);
+    });
+  }
+
+  function setInputClearVisible(state, visible) {
+    if (!state.inputClearButton) return;
+    state.inputClearButton.classList.toggle("hidden", !visible);
+    state.inputClearButton.classList.toggle("grid", visible);
+  }
+
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
@@ -52,6 +79,32 @@
     render(state);
   }
 
+  function zoomBounds(state) {
+    return {
+      min: Number(state.zoomInput.min) || 1,
+      max: Number(state.zoomInput.max) || 3,
+    };
+  }
+
+  function setZoom(state, nextZoom, originX, originY) {
+    if (!state.image.naturalWidth || !state.image.naturalHeight) return;
+    const bounds = zoomBounds(state);
+    const previousZoom = state.zoom;
+    const zoom = clamp(nextZoom, bounds.min, bounds.max);
+    if (zoom === previousZoom) return;
+
+    const oldScale = state.baseScale * previousZoom;
+    const newScale = state.baseScale * zoom;
+    const imageX = (originX - state.offsetX) / oldScale;
+    const imageY = (originY - state.offsetY) / oldScale;
+
+    state.zoom = zoom;
+    state.offsetX = originX - imageX * newScale;
+    state.offsetY = originY - imageY * newScale;
+    state.zoomInput.value = String(zoom);
+    render(state);
+  }
+
   function stopDrag() {
     if (!activeDragState) return;
     activeDragState.dragging = false;
@@ -59,15 +112,55 @@
     activeDragState = null;
   }
 
-  function clearCropper(state) {
+  function clearCropper(state, keepPreset) {
     if (state.url) URL.revokeObjectURL(state.url);
     state.url = "";
     state.file = null;
     state.cropper.classList.add("hidden");
+    state.cropper.classList.remove("is-preset-preview");
     state.image.removeAttribute("src");
+    state.image.removeAttribute("style");
+    state.zoomInput.disabled = false;
     setError(state.cropper, "");
     state.input.value = "";
+    if (!keepPreset) setPreset(presetGroupForInput(state.input), "");
+    setInputClearVisible(state, false);
     if (state.input.form) delete state.input.form.dataset.avatarSubmitting;
+  }
+
+  function showStaticPreview(state, src, label, cropEnabled) {
+    if (!src) return;
+    if (state.url) URL.revokeObjectURL(state.url);
+    state.url = "";
+    state.file = cropEnabled ? { name: "current-avatar.jpg" } : null;
+    state.input.value = "";
+    state.zoom = cropEnabled ? initialZoom : 1;
+    state.offsetX = 0;
+    state.offsetY = 0;
+    state.zoomInput.value = String(state.zoom);
+    state.zoomInput.disabled = !cropEnabled;
+    state.filename.textContent = label || "当前头像";
+    state.cropper.classList.remove("hidden");
+    state.cropper.classList.toggle("is-preset-preview", !cropEnabled);
+    setInputClearVisible(state, false);
+    setError(state.cropper, "");
+    state.image.onload = function () {
+      const frameSize = state.frame.clientWidth || 160;
+      state.baseScale = Math.max(frameSize / state.image.naturalWidth, frameSize / state.image.naturalHeight);
+      const width = state.image.naturalWidth * state.baseScale;
+      const height = state.image.naturalHeight * state.baseScale;
+      state.offsetX = (frameSize - width) / 2;
+      state.offsetY = (frameSize - height) / 2;
+      render(state);
+    };
+    state.image.src = src;
+    if (state.input.form) delete state.input.form.dataset.avatarSubmitting;
+  }
+
+  function showPresetPreview(state, button) {
+    const image = button.querySelector("img");
+    if (!image) return;
+    showStaticPreview(state, image.src, "系统预设头像");
   }
 
   function loadFile(state, file) {
@@ -85,6 +178,8 @@
 
     if (state.url) URL.revokeObjectURL(state.url);
     state.file = file;
+    state.cropper.classList.remove("is-preset-preview");
+    state.zoomInput.disabled = false;
     state.url = URL.createObjectURL(file);
     state.zoom = initialZoom;
     state.offsetX = 0;
@@ -92,6 +187,7 @@
     state.zoomInput.value = String(initialZoom);
     state.filename.textContent = file.name;
     state.cropper.classList.remove("hidden");
+    setInputClearVisible(state, true);
     if (state.input.form) delete state.input.form.dataset.avatarSubmitting;
     state.image.onload = function () {
       const frameSize = state.frame.clientWidth || 160;
@@ -147,6 +243,9 @@
       zoomInput: cropper.querySelector("[data-avatar-zoom]"),
       filename: cropper.querySelector("[data-avatar-filename]"),
       clearButton: cropper.querySelector("[data-avatar-clear]"),
+      keepCurrentButton: cropper.querySelector("[data-avatar-keep-current]"),
+      cropCurrentButton: cropper.querySelector("[data-avatar-crop-current]"),
+      inputClearButton: findInputClearButton(input),
       file: null,
       url: "",
       baseScale: 1,
@@ -159,14 +258,67 @@
     };
 
     input.addEventListener("change", function () {
+      if (input.files && input.files[0]) setPreset(presetGroupForInput(input), "");
       loadFile(state, input.files && input.files[0]);
     });
     state.clearButton.addEventListener("click", function () {
       clearCropper(state);
     });
+    if (state.inputClearButton) {
+      state.inputClearButton.addEventListener("click", function () {
+        clearCropper(state);
+      });
+    }
+    if (state.keepCurrentButton) {
+      state.keepCurrentButton.addEventListener("click", function () {
+        clearCropper(state, true);
+        setPreset(presetGroupForInput(input), "");
+        showStaticPreview(state, cropper.dataset.initialAvatarUrl, "当前头像");
+      });
+    }
+    if (state.cropCurrentButton) {
+      state.cropCurrentButton.addEventListener("click", function () {
+        clearCropper(state, true);
+        setPreset(presetGroupForInput(input), "");
+        showStaticPreview(state, cropper.dataset.initialAvatarUrl, "当前头像（裁剪中）", true);
+      });
+    }
+    const presetGroup = presetGroupForInput(input);
+    if (presetGroup) {
+      const hidden = presetGroup.closest(".block").querySelector("input[name='avatar_preset']");
+      if (hidden && hidden.value) setPreset(presetGroup, hidden.value);
+      presetGroup.querySelectorAll("[data-avatar-preset]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          clearCropper(state, true);
+          setPreset(presetGroup, button.dataset.avatarPreset);
+          showPresetPreview(state, button);
+        });
+      });
+      const selected = hidden && hidden.value ? presetGroup.querySelector("[data-avatar-preset='" + hidden.value + "']") : null;
+      if (selected) showPresetPreview(state, selected);
+    }
+    if (!state.file && cropper.dataset.initialAvatarUrl && !cropper.classList.contains("is-preset-preview")) {
+      showStaticPreview(state, cropper.dataset.initialAvatarUrl, "当前头像");
+    }
     state.zoomInput.addEventListener("input", function () {
-      state.zoom = Number(state.zoomInput.value) || 1;
-      render(state);
+      const frameSize = state.frame.clientWidth || 160;
+      setZoom(state, Number(state.zoomInput.value) || 1, frameSize / 2, frameSize / 2);
+    });
+    state.zoomInput.addEventListener("wheel", function (event) {
+      if (!state.file) return;
+      event.preventDefault();
+      const frameSize = state.frame.clientWidth || 160;
+      const nextZoom = state.zoom * Math.exp(-event.deltaY * 0.0015);
+      setZoom(state, nextZoom, frameSize / 2, frameSize / 2);
+    });
+    state.frame.addEventListener("wheel", function (event) {
+      if (!state.file) return;
+      event.preventDefault();
+      const rect = state.frame.getBoundingClientRect();
+      const originX = event.clientX - rect.left;
+      const originY = event.clientY - rect.top;
+      const nextZoom = state.zoom * Math.exp(-event.deltaY * 0.0015);
+      setZoom(state, nextZoom, originX, originY);
     });
     state.frame.addEventListener("pointerdown", function (event) {
       if (!state.file) return;

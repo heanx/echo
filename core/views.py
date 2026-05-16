@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,7 +10,7 @@ from comments.models import TrackComment
 from comments.queries import get_comment_page_context
 from tracks.models import Track
 
-from .forms import EchoAuthenticationForm, EchoUserCreationForm, UserProfileForm
+from .forms import AccountSecurityForm, EchoAuthenticationForm, EchoUserCreationForm, UserProfileForm
 from .models import UserProfile
 
 
@@ -154,10 +154,22 @@ def profile_settings(request):
     )
     form = UserProfileForm(request.POST or None, request.FILES or None, instance=profile)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        profile = form.save()
         messages.success(request, "个人资料已更新。")
-        return redirect("profile", username=request.user.username)
+        return redirect("profile", username=profile.user.username)
     return render(request, "profile/settings.html", {"form": form})
+
+
+@login_required
+def account_security(request):
+    form = AccountSecurityForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        user, password_changed = form.save()
+        if password_changed:
+            update_session_auth_hash(request, user)
+        messages.success(request, "账户安全设置已更新。")
+        return redirect("profile", username=user.username)
+    return render(request, "profile/security.html", {"form": form})
 
 
 def profile_view(request, username):

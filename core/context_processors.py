@@ -17,14 +17,7 @@ def _get_display_name(user):
 
 def _get_avatar_url(user):
     profile = _get_profile(user)
-    avatar = getattr(profile, "avatar", None)
-    if not avatar:
-        return ""
-
-    try:
-        return avatar.url
-    except ValueError:
-        return ""
+    return profile.avatar_url if profile else ""
 
 
 def user_status(request):

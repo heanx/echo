@@ -1,6 +1,6 @@
 # Echo 数据库对接说明
 
-更新时间：2026-05-11
+更新时间：2026-05-16
 
 ## 1. 当前数据库定位
 
@@ -31,6 +31,8 @@ TrackLyrics 1 - N TrackLyricLine
 
 Album N - N Track
 AlbumTrack 作为中间表保存排序
+
+User 1 - 1 UserProfile
 ```
 
 主要 app：
@@ -40,8 +42,64 @@ tracks      音频作品
 albums      专辑、合集、歌单容器
 comments    评论与评论互动
 lyrics      歌词版本与歌词行
-core        首页、评论页、歌词页聚合查询
+core        首页、评论页、歌词页聚合查询、用户资料
 ```
+
+## 2.1 User 与 UserProfile
+
+Echo 继续使用 Django 内置 `auth.User` 作为登录账户表。
+
+当前约定：
+
+- `User.username` 作为 Echo 的 ID 使用。
+- `User.email` 可选，后续用于找回账号或接收通知。
+- 密码不明文保存，继续使用 Django 内置哈希密码机制。
+- 不新增重复的自定义 ID 字段，避免和 `auth.User.username` 出现双写不一致。
+
+扩展资料模型：
+
+```text
+core.models.UserProfile
+```
+
+字段：
+
+```text
+user
+display_name
+avatar
+avatar_preset
+bio
+created_at
+updated_at
+```
+
+说明：
+
+- `display_name`：昵称，对外展示名。
+- `avatar`：上传头像文件路径。
+- `avatar_preset`：系统预设头像 key。
+- `bio`：个人简介。
+- `avatar_url`：模型属性，不落库，统一返回上传头像或预设头像地址。
+
+新增迁移：
+
+```text
+core/migrations/0002_userprofile_avatar_preset.py
+```
+
+ID 唯一性：
+
+- 注册时由 `EchoUserCreationForm.clean_username()` 检查。
+- 修改 ID 时由 `AccountSecurityForm.clean_username()` 检查，并排除当前用户。
+- 检查使用 `username__iexact`，避免大小写变化造成展示上的重复。
+
+账户安全：
+
+- `/settings/profile/` 只更新 `UserProfile` 展示资料。
+- `/settings/security/` 更新 `User.username` 和密码。
+- 修改密码时必须校验当前密码。
+- 修改密码后调用 `update_session_auth_hash()`，避免用户被立即登出。
 
 ## 3. Track 音频作品
 

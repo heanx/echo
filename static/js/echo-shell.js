@@ -13,6 +13,9 @@
       const themeToggle = document.getElementById("theme-toggle");
       const sidebarToggles = document.querySelectorAll("[data-toggle-sidebar]");
       const tooltipTriggers = document.querySelectorAll(".has-tooltip");
+      const accountMenu = document.querySelector(".account-menu");
+      const accountMenuTrigger = document.querySelector("[data-account-menu-trigger]");
+      const accountMenuPanel = document.querySelector("[data-account-menu]");
       const libraryTrigger = document.querySelector("[data-library-trigger]");
       const libraryCreate = document.querySelector(".library-create");
       const libraryCreateButton = document.querySelector("[data-library-create]");
@@ -888,6 +891,11 @@
         libraryCreateButton.setAttribute("aria-expanded", open ? "true" : "false");
         if (open) positionCreateMenu();
       }
+      function setAccountMenu(open) {
+        if (!accountMenu || !accountMenuTrigger || !accountMenuPanel) return;
+        accountMenu.classList.toggle("is-open", open);
+        accountMenuTrigger.setAttribute("aria-expanded", open ? "true" : "false");
+      }
       function positionCreateMenu() {
         if (!libraryCreateButton || !libraryCreateMenu) return;
         const gap = 12;
@@ -1118,7 +1126,15 @@
       if (libraryCreateButton) {
         libraryCreateButton.addEventListener("click", function (event) {
           event.stopPropagation();
+          setAccountMenu(false);
           setCreateMenu(!libraryCreate.classList.contains("is-open"));
+        });
+      }
+      if (accountMenuTrigger) {
+        accountMenuTrigger.addEventListener("click", function (event) {
+          event.stopPropagation();
+          setCreateMenu(false);
+          setAccountMenu(!accountMenu.classList.contains("is-open"));
         });
       }
       window.addEventListener("resize", function () {
@@ -1129,9 +1145,19 @@
       });
       document.addEventListener("click", function (event) {
         if (libraryCreate && !libraryCreate.contains(event.target)) setCreateMenu(false);
+        if (accountMenu && !accountMenu.contains(event.target)) setAccountMenu(false);
       });
       document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") setCreateMenu(false);
+        if (event.key === "Escape") {
+          setCreateMenu(false);
+          setAccountMenu(false);
+        }
+      });
+      document.body.addEventListener("click", function (event) {
+        var comingSoonTrigger = event.target.closest("[data-coming-soon]");
+        if (!comingSoonTrigger) return;
+        event.preventDefault();
+        showToast(comingSoonTrigger.dataset.comingSoon + " 功能正在设计中。", "info");
       });
       closeContext.addEventListener("click", function () {
         if (isContextCollapsed()) {

@@ -36,7 +36,13 @@
     <div class="grid gap-3">
       {% for user in users %}
         <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-          <span class="cover-eclipse grid h-12 w-12 place-items-center rounded-full font-black text-white">{{ user.profile.name|first|upper }}</span>
+          {% if user.profile.avatar_url %}
+            <img src="{{ user.profile.avatar_url }}"
+                 alt="{{ user.profile.name }} 的头像"
+                 class="h-12 w-12 rounded-full object-cover">
+          {% else %}
+            <span class="cover-eclipse grid h-12 w-12 place-items-center rounded-full font-black text-white">{{ user.profile.name|first|upper }}</span>
+          {% endif %}
           <span class="min-w-0">
             <span class="block truncate font-bold">{{ user.profile.name }}</span>
             <span class="block truncate text-sm text-zinc-500">@{{ user.username }}</span>

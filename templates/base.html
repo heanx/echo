@@ -82,19 +82,71 @@
         </button>
         <a href="{% url 'tracks:upload' %}" data-top-action="upload" class="hidden shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 sm:inline-flex">上传</a>
         {% if request.user.is_authenticated %}
-        <a href="{% url 'profile' request.user.username %}" class="has-tooltip flex shrink-0 items-center gap-2 rounded-full pl-1 pr-1 transition hover:bg-zinc-100 sm:pr-2 dark:hover:bg-zinc-900" aria-label="用户主页">
-          {% if user_avatar_url %}
-            <img src="{{ user_avatar_url }}" alt="" class="h-11 w-11 rounded-full object-cover">
-          {% else %}
-            <span class="cover-eclipse grid h-11 w-11 place-items-center rounded-full text-sm font-black text-white">
-              {{ display_name|default:"E"|first|upper }}
-            </span>
-          {% endif %}
-          <span class="top-user-name hidden max-w-24 truncate text-sm font-semibold lg:block">{{ display_name|default:"Echo 用户" }}</span>
-          <svg viewBox="0 0 24 24" class="top-user-chevron hidden h-4 w-4 text-zinc-500 sm:block" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-          <span class="echo-tooltip top-tooltip lg:hidden" role="tooltip">用户菜单</span>
-        </a>
-        <a href="{% url 'logout' %}" class="hidden rounded-full border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:border-brand hover:text-brand sm:inline-flex dark:border-zinc-700 dark:text-zinc-300">退出</a>
+        <div class="account-menu">
+          <button type="button"
+                  data-account-menu-trigger
+                  class="has-tooltip account-menu-trigger flex shrink-0 items-center gap-2 rounded-full px-1 py-1 transition hover:bg-zinc-100 sm:pr-3 dark:hover:bg-zinc-900"
+                  aria-expanded="false"
+                  aria-haspopup="menu"
+                  aria-label="Echo 设置菜单">
+            {% if user_avatar_url %}
+              <img src="{{ user_avatar_url }}" alt="{{ display_name }} 的头像" class="h-11 w-11 rounded-full object-cover ring-2 ring-white dark:ring-zinc-950">
+            {% else %}
+              <span class="cover-eclipse grid h-11 w-11 place-items-center rounded-full text-sm font-black text-white">
+                {{ display_name|default:"E"|first|upper }}
+              </span>
+            {% endif %}
+            <span class="top-user-name hidden max-w-24 truncate text-sm font-semibold lg:block">{{ display_name|default:"Echo 用户" }}</span>
+            <svg viewBox="0 0 24 24" class="top-user-chevron hidden h-4 w-4 text-zinc-500 sm:block" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            <span class="echo-tooltip top-tooltip lg:hidden" role="tooltip">Echo 设置</span>
+          </button>
+          <div class="account-menu-panel rounded-2xl border border-zinc-200/80 bg-white/96 p-2 text-zinc-950 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-[#171717]/96 dark:text-white"
+               data-account-menu
+               role="menu"
+               aria-label="Echo 设置">
+            <div class="border-b border-zinc-200/80 px-3 py-3 dark:border-zinc-800">
+              <p class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Echo 设置</p>
+              <a href="{% url 'profile' request.user.username %}" class="mt-2 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-zinc-100 dark:hover:bg-zinc-800" role="menuitem">
+                {% if user_avatar_url %}
+                  <img src="{{ user_avatar_url }}" alt="" class="h-10 w-10 rounded-full object-cover">
+                {% else %}
+                  <span class="cover-eclipse grid h-10 w-10 place-items-center rounded-full text-sm font-black text-white">
+                    {{ display_name|default:"E"|first|upper }}
+                  </span>
+                {% endif %}
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-bold">{{ display_name|default:"Echo 用户" }}</span>
+                  <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">@{{ request.user.username }}</span>
+                </span>
+                <svg viewBox="0 0 24 24" class="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+              </a>
+            </div>
+
+            <div class="space-y-1 py-2">
+              <a href="{% url 'profile' request.user.username %}" class="account-menu-item" role="menuitem">
+                <span>个人主页</span>
+              </a>
+              <a href="{% url 'profile_settings' %}" class="account-menu-item" role="menuitem">
+                <span>个人资料设置</span>
+              </a>
+              <button type="button" class="account-menu-item" data-coming-soon="外观设置" role="menuitem">
+                <span>外观</span>
+              </button>
+            </div>
+
+            <div class="border-t border-zinc-200/80 py-2 dark:border-zinc-800">
+              <button type="button" class="account-menu-item" data-coming-soon="播放偏好" role="menuitem">
+                <span>播放偏好</span>
+              </button>
+            </div>
+
+            <div class="border-t border-zinc-200/80 pt-2 dark:border-zinc-800">
+              <a href="{% url 'logout' %}" class="account-menu-item" role="menuitem">
+                <span>退出</span>
+              </a>
+            </div>
+          </div>
+        </div>
         {% else %}
         <a href="{% url 'login' %}" class="hidden rounded-full border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:border-brand hover:text-brand sm:inline-flex dark:border-zinc-700 dark:text-zinc-300">登录</a>
         <a href="{% url 'register' %}" class="inline-flex shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">注册</a>
@@ -185,7 +237,7 @@
 
           <section class="min-h-0">
             <h2 class="sidebar-expanded mb-4 text-sm font-bold text-zinc-600 dark:text-zinc-300">最近播放</h2>
-            <div class="space-y-3" data-play-queue="recent-tracks">
+            <div class="space-y-3" data-play-queue="recent-tracks" data-context-menu-kind="history">
               {% for track in shell_recent_tracks %}
                 <button type="button"
                         class="history-track group grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900"
@@ -244,9 +296,9 @@
           <section class="context-view" data-context-view="playlist">
             <div class="mb-2 flex items-center justify-between px-2">
               <h3 class="text-sm font-bold">接下来播放</h3>
-              <span class="text-xs text-zinc-500">{{ shell_queue_tracks|length|default:0 }} 首</span>
+              <span id="playlist-track-count" class="text-xs text-zinc-500">{{ shell_queue_tracks|length|default:0 }} 首</span>
             </div>
-            <div id="playlist-track-list" class="space-y-1" data-play-queue="sidebar-playlist">
+            <div id="playlist-track-list" class="space-y-1" data-play-queue="sidebar-playlist" data-context-menu-kind="queue">
               {% for track in shell_queue_tracks %}
                 <button
                   type="button"

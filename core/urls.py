@@ -12,5 +12,6 @@ urlpatterns = [
     path("register/", views.register_view, name="register"),
     path("logout/", views.logout_view, name="logout"),
     path("settings/profile/", views.profile_settings, name="profile_settings"),
+    path("settings/security/", views.account_security, name="account_security"),
     path("users/<str:username>/", views.profile_view, name="profile"),
 ]

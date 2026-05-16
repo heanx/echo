@@ -247,6 +247,21 @@ class AuthFlowTests(TestCase):
         self.assertEqual(user.profile.display_name, "New Listener")
         self.assertIn("_auth_user_id", self.client.session)
 
+    def test_register_rejects_duplicate_id(self):
+        User.objects.create_user(username="taken-id", password="a-strong-test-pass-123")
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "taken-id",
+                "display_name": "Taken Listener",
+                "password1": "a-strong-test-pass-123",
+                "password2": "a-strong-test-pass-123",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "这个 ID 已经被使用，请换一个。")
+        self.assertEqual(User.objects.filter(username__iexact="taken-id").count(), 1)
+
     def test_login_uses_next_parameter(self):
         user = User.objects.create_user(username="listener", password="a-strong-test-pass-123")
         response = self.client.post(
@@ -291,6 +306,22 @@ class AuthFlowTests(TestCase):
         user = User.objects.get(username="avatar-user")
         self.assertTrue(user.profile.avatar.name)
 
+    def test_register_accepts_preset_avatar(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "preset-avatar-user",
+                "display_name": "Preset Avatar",
+                "avatar_preset": "pulse",
+                "password1": "preset123",
+                "password2": "preset123",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="preset-avatar-user")
+        self.assertEqual(user.profile.avatar_preset, "pulse")
+        self.assertIn("avatar-presets/pulse.svg", user.profile.avatar_url)
+
     def test_register_rejects_fake_avatar_file(self):
         response = self.client.post(
             reverse("register"),
@@ -310,6 +341,146 @@ class AuthFlowTests(TestCase):
         response = self.client.get(reverse("register"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'accept="image/jpeg,image/png,image/webp"')
+
+    def test_register_explains_nickname_and_id(self):
+        response = self.client.get(reverse("register"))
+        self.assertContains(response, "昵称")
+        self.assertContains(response, "ID")
+        self.assertContains(response, "用于登录和个人主页地址")
+        self.assertContains(response, "显示在个人主页、评论和上传作品旁")
+
+    def test_account_security_rejects_duplicate_id(self):
+        current_user = User.objects.create_user(username="current-id", password="a-strong-test-pass-123")
+        User.objects.create_user(username="other-id", password="a-strong-test-pass-123")
+        self.client.force_login(current_user)
+        response = self.client.post(
+            reverse("account_security"),
+            {
+                "username": "other-id",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "这个 ID 已经被使用，请换一个。")
+        current_user.refresh_from_db()
+        self.assertEqual(current_user.username, "current-id")
+
+    def test_account_security_can_update_id(self):
+        user = User.objects.create_user(username="old-id", password="a-strong-test-pass-123")
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("account_security"),
+            {
+                "username": "new-id",
+            },
+        )
+        self.assertRedirects(response, reverse("profile", kwargs={"username": "new-id"}))
+        user.refresh_from_db()
+        self.assertEqual(user.username, "new-id")
+
+    def test_account_security_can_update_password(self):
+        user = User.objects.create_user(username="secure-user", password="old-pass-123")
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("account_security"),
+            {
+                "username": "secure-user",
+                "current_password": "old-pass-123",
+                "new_password1": "new-pass-123",
+                "new_password2": "new-pass-123",
+            },
+        )
+        self.assertRedirects(response, reverse("profile", kwargs={"username": "secure-user"}))
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("new-pass-123"))
+        response = self.client.get(reverse("account_security"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_account_security_rejects_wrong_current_password(self):
+        user = User.objects.create_user(username="wrong-current", password="old-pass-123")
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("account_security"),
+            {
+                "username": "wrong-current",
+                "current_password": "not-the-password",
+                "new_password1": "new-pass-123",
+                "new_password2": "new-pass-123",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "当前密码不正确。")
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("old-pass-123"))
+
+    def test_register_password_requires_minimum_length(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "short-password",
+                "display_name": "Short Password",
+                "password1": "abc1234",
+                "password2": "abc1234",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "密码不能低于 8 位")
+        self.assertFalse(User.objects.filter(username="short-password").exists())
+
+    def test_register_password_requires_letter_and_number(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "numberless-password",
+                "display_name": "Numberless Password",
+                "password1": "abcdefgh",
+                "password2": "abcdefgh",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "密码必须包含至少 1 个数字")
+        self.assertFalse(User.objects.filter(username="numberless-password").exists())
+
+    def test_register_password_rejects_unsupported_symbol(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "bad-symbol-password",
+                "display_name": "Bad Symbol Password",
+                "password1": "abc12345~",
+                "password2": "abc12345~",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "密码只能使用英文字母、数字和")
+        self.assertFalse(User.objects.filter(username="bad-symbol-password").exists())
+
+
+class UserAvatarRenderingTests(TestCase):
+    def setUp(self):
+        self.png_bytes = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+        )
+        self.user = User.objects.create_user(
+            username="avatar-render-user",
+            password="a-strong-test-pass-123",
+        )
+        self.user.profile.display_name = "Avatar Render"
+        self.user.profile.avatar = SimpleUploadedFile("avatar.png", self.png_bytes, content_type="image/png")
+        self.user.profile.save(update_fields=["display_name", "avatar"])
+
+    def test_authenticated_home_renders_account_menu(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/")
+        self.assertContains(response, "data-account-menu-trigger")
+        self.assertContains(response, "Echo 设置")
+
+    def test_profile_page_prefers_uploaded_avatar(self):
+        response = self.client.get(reverse("profile", kwargs={"username": self.user.username}))
+        self.assertContains(response, self.user.profile.avatar.url)
+
+    def test_search_results_show_uploaded_avatar(self):
+        response = self.client.get(reverse("search"), {"q": "Avatar Render"})
+        self.assertContains(response, self.user.profile.avatar.url)
 
 
 @override_settings(DEBUG=False)

@@ -1,6 +1,7 @@
 <div class="avatar-cropper mt-3 hidden rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-[#121212]"
      data-avatar-cropper
-     data-input-id="{{ input_id }}">
+     data-input-id="{{ input_id }}"
+     {% if initial_avatar_url %}data-initial-avatar-url="{{ initial_avatar_url }}"{% endif %}>
   <div>
     <div>
       <p class="text-sm font-bold">头像预览</p>
@@ -19,8 +20,26 @@
       </label>
       <div class="flex min-w-0 items-center gap-2 text-xs text-zinc-500">
         <p class="min-w-0 flex-1 truncate" data-avatar-filename></p>
+        {% if initial_avatar_url %}
+          <button type="button"
+                  class="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:text-zinc-300"
+                  data-avatar-crop-current>
+            裁剪
+          </button>
+          <button type="button"
+                  class="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:text-zinc-300"
+                  data-avatar-keep-current>
+            保留
+          </button>
+          <a href="{{ initial_avatar_url }}"
+             download
+             class="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:text-zinc-300"
+             data-avatar-download-current>
+            下载
+          </a>
+        {% endif %}
         <button type="button"
-                class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-zinc-500 transition hover:bg-rose-500/10 hover:text-rose-500"
+                class="field-icon-button field-icon-button-danger shrink-0"
                 aria-label="取消头像"
                 data-avatar-clear>
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
