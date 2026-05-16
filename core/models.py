@@ -44,6 +44,41 @@ class UserProfile(models.Model):
         return ""
 
 
+class Notification(models.Model):
+    KIND_COMMENT_REPLY = "comment_reply"
+    KIND_COMMENT_LIKE = "comment_like"
+    KIND_SYSTEM = "system"
+    KIND_CHOICES = [
+        (KIND_COMMENT_REPLY, "评论回复"),
+        (KIND_COMMENT_LIKE, "评论点赞"),
+        (KIND_SYSTEM, "系统通知"),
+    ]
+
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sent_notifications",
+    )
+    kind = models.CharField(max_length=40, choices=KIND_CHOICES, default=KIND_SYSTEM)
+    title = models.CharField(max_length=160)
+    body = models.TextField(blank=True)
+    target_url = models.CharField(max_length=300, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["is_read", "-created_at"]
+        indexes = [
+            models.Index(fields=["recipient", "is_read", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def ensure_user_profile(sender, instance, created, **kwargs):
     if created:

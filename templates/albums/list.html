@@ -4,10 +4,35 @@
 
 {% block main %}
 <section>
-  <div class="mb-5">
-    <h1 class="text-3xl font-black">专辑与合集</h1>
-    <p class="mt-1 text-sm text-zinc-500">用于首页和列表展示的 Echo 专辑数据。</p>
+  <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-3xl font-black">专辑与合集</h1>
+      <p class="mt-1 text-sm text-zinc-500">用于首页和列表展示的 Echo 专辑数据，也可以管理用户歌单。</p>
+    </div>
+    <a href="{% url 'albums:playlist_create' %}" class="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white transition hover:bg-brand-dark">创建歌单</a>
   </div>
+
+  <section class="mb-8">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-xl font-black">歌单</h2>
+      <a href="{% url 'albums:playlists' %}" class="text-sm font-bold text-brand">查看全部</a>
+    </div>
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+      {% for playlist in playlists %}
+        <a href="{% url 'albums:playlist_detail' playlist.pk %}" class="group rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-900">
+          <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-lg text-3xl font-black text-white">♫</span>
+          <span class="mt-3 block truncate font-bold transition group-hover:text-brand">{{ playlist.title }}</span>
+          <span class="block truncate text-sm text-zinc-500">{{ playlist.creator }}</span>
+        </a>
+      {% empty %}
+        <div class="col-span-full">
+          {% include "components/empty_state.html" with icon="music" title="还没有歌单" description="创建第一个歌单，把喜欢的作品收在一起。" action_href="/albums/playlists/new/" action_label="创建歌单" %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <h2 class="mb-4 text-xl font-black">专辑</h2>
   <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
     {% for album in albums %}
       {% include "components/album_card.html" with album=album %}

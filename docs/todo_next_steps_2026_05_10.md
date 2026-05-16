@@ -87,8 +87,8 @@
 - 已覆盖：评论提交已限制 `Track.status = published`，隐藏 / 草稿 / 删除作品不能通过评论接口提交评论。
 - 已覆盖：上传安全校验已从“只看扩展名”升级为扩展名、大小、文件头魔数校验；头像额外做图片解析和 Pillow 压缩。
 - 已部分覆盖：顶部搜索框已提交到 `/search/` 独立搜索页，不再提交到 `/tracks/?q=`；搜索系统仍需补分页、队列入口和结果页体验。
-- 待处理：`lyrics/views.py` 独立歌词上传读取 `source_file` 后应补 `source_file.seek(0)`，避免保存到 `FileField` 时文件指针停在 EOF。
-- 待处理：`TrackComment.parent related_name="replies"` 与 `TrackComment.replies` property 命名冲突，应改为 `child_comments` / `reply_items` 等明确命名，并让模板使用 `reply_count` 或 `replies_count`。
+- 已覆盖：`lyrics/views.py` 独立歌词上传读取 `source_file` 后已补 `source_file.seek(0)`，避免保存到 `FileField` 时文件指针停在 EOF。
+- 已覆盖：`TrackComment.parent related_name="replies"` 与 `TrackComment.replies` property 命名冲突已处理，回复集合改为 `child_comments`，回复数继续使用 `reply_count / replies_count`。
 - 待处理：`base.html`、`static/js/echo-shell.js` 继续变大，歌词编辑器逻辑在音频上传页和歌词上传页重复，建议抽成共享 JS 模块或小组件。
 
 ### P1 播放体验闭环
@@ -111,34 +111,43 @@
 10. 搜索系统
 - 支持按歌曲标题、歌手、专辑、上传者搜索
 - 独立结果页
-- 空状态和分页联动
-- 搜索结果接入统一播放队列
+- 空状态和分页联动（已补歌曲结果分页）
+- 搜索结果接入统一播放队列（已保留 `data-play-queue="search-tracks"`）
 - 审查补充：避免 `/tracks/?q=` 给用户造成“假搜索”印象；搜索入口统一到 `/search/`
 
 11. 评论回复 UI
 - 回复按钮
 - 二级回复表单
 - `parent` / `reply_to_user_name` 写入与展示
-- 审查补充：先处理 `TrackComment.replies` 命名冲突，再继续扩展回复 UI
+- 状态：已完成基础闭环（2026-05-16）
+- 已完成：回复按钮、二级回复表单、HTMX 插入、`child_comments` 预取、`reply_count` 计数
 
 12. 评论点赞
 - 点赞 / 取消点赞接口
 - `like_count` 原子更新
 - 前端局部刷新
+- 状态：已完成基础闭环（2026-05-16）
+- 已完成：`TrackCommentReaction` 去重、`F()` 原子更新、前端 fetch 局部更新数量和选中态
 
 13. 歌单 CRUD
 - 新增 `Playlist` 模型
 - 创建、编辑、删除、排序
 - 歌单详情页与整单播放
+- 状态：基础闭环已完成（2026-05-16）
+- 已完成：`Playlist` / `PlaylistTrack`、公开/私有歌单、创建/编辑/删除、添加/移除歌曲、排序、详情页 `data-play-queue`
 
 14. 用户个人主页
 - 展示头像、昵称、简介、注册时间
 - 展示上传曲目、评论历史等
+- 状态：基础闭环已完成（2026-05-16）
+- 已完成：头像、昵称、ID、简介、注册时间、公开作品数、公开评论数、上传曲目、最近评论、本人资料 / 安全入口
 
 15. 通知系统
 - `Notification` 模型
 - 评论回复 / 点赞等触发通知
 - 顶部未读数与通知列表
+- 状态：基础闭环已完成（2026-05-16）
+- 已完成：`Notification` 模型、顶部未读数、通知列表、标记已读、评论回复 / 点赞触发通知
 
 ### P2 体验与内容
 
@@ -151,7 +160,7 @@
 17. 统一歌词上传 / 校对体验
 - 独立歌词上传页与音频上传页体验统一
 - LRC/TXT 导入后的分列编辑能力
-- 审查补充：独立歌词上传页保存源文件前补 `source_file.seek(0)`；两处歌词编辑器 JS 抽成共享模块
+- 审查补充：`source_file.seek(0)` 已完成；两处歌词编辑器 JS 仍待抽成共享模块
 
 18. 歌词高亮优化
 - 二分查找
@@ -210,4 +219,4 @@ DJANGO_SETTINGS_MODULE=echo_project.settings.prod python -m django check
 结果：
 - Django check：通过
 - JS 语法检查：通过
-- 测试：48 / 48 通过（2026-05-16）
+- 测试：58 / 58 通过（2026-05-16）

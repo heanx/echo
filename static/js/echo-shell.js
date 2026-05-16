@@ -380,6 +380,44 @@
             playReportKey = "";
           });
       }
+      function toggleReplyForm(button) {
+        var targetId = button ? button.dataset.target : "";
+        var form = targetId ? document.getElementById(targetId) : null;
+        if (!form) return;
+        form.classList.toggle("hidden");
+        var textarea = form.querySelector("textarea[name='body']");
+        if (!form.classList.contains("hidden") && textarea) textarea.focus();
+      }
+      function toggleCommentLike(button) {
+        if (!button || button.dataset.loading === "true") return;
+        var url = button.dataset.url || "";
+        if (!url) return;
+        button.dataset.loading = "true";
+        fetch(url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "X-CSRFToken": getCookie("csrftoken") || echoConfig.csrfToken || "",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+          .then(function (response) {
+            if (!response.ok) throw new Error("comment like failed");
+            return response.json();
+          })
+          .then(function (payload) {
+            if (!payload || !payload.ok) return;
+            var count = button.querySelector("[data-comment-like-count]");
+            if (count) count.textContent = payload.like_count;
+            button.classList.toggle("text-brand", Boolean(payload.liked));
+          })
+          .catch(function () {
+            showToast("点赞没有成功，请稍后再试。", "error");
+          })
+          .finally(function () {
+            delete button.dataset.loading;
+          });
+      }
       function setCurrentTrack(trackId) {
         if (!trackId) return;
         var restoringTrack = pendingResumeTime !== null && String(trackId) === String(pendingResumeTrackId);
@@ -1329,6 +1367,20 @@
         showToast("当前音频加载失败，请稍后重试。", "error");
       });
       document.body.addEventListener("click", function (event) {
+        const likeButton = event.target.closest("[data-comment-like]");
+        if (likeButton) {
+          event.preventDefault();
+          toggleCommentLike(likeButton);
+          return;
+        }
+
+        const replyButton = event.target.closest("[data-reply-toggle]");
+        if (replyButton) {
+          event.preventDefault();
+          toggleReplyForm(replyButton);
+          return;
+        }
+
         const lyricLine = event.target.closest(".lyrics-line[data-start-ms]");
         if (lyricLine && hasUsableDuration()) {
           const startMs = parseInt(lyricLine.dataset.startMs, 10);

@@ -39,7 +39,7 @@ def build_comment_queryset(track, sort="hot", comment_filter=""):
         .visible()
         .top_level()
         .select_related("track", "user", "parent", "parent__user")
-        .prefetch_related(Prefetch("replies", queryset=replies_queryset))
+        .prefetch_related(Prefetch("child_comments", queryset=replies_queryset))
         .sorted(effective_sort)
     )
 
@@ -48,7 +48,7 @@ def _collect_comment_ids(comments):
     ids = []
     for comment in comments:
         ids.append(comment.pk)
-        ids.extend(reply.pk for reply in comment.replies.all())
+        ids.extend(reply.pk for reply in comment.child_comments.all())
     return ids
 
 

@@ -24,11 +24,14 @@ def user_status(request):
     from tracks.models import Track
 
     queue_tracks = list(Track.objects.filter(status=Track.STATUS_PUBLISHED).order_by("-updated_at")[:10])
+    unread_message_count = 0
+    if request.user.is_authenticated:
+        unread_message_count = request.user.notifications.filter(is_read=False).count()
 
     return {
         "display_name": _get_display_name(request.user),
         "user_avatar_url": _get_avatar_url(request.user),
-        "unread_message_count": 0,
+        "unread_message_count": unread_message_count,
         "friend_request_count": 0,
         "shell_recent_tracks": queue_tracks[:3],
         "shell_queue_tracks": queue_tracks,

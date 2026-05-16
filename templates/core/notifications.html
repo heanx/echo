@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}通知 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-3xl space-y-6">
+  <div>
+    <h1 class="text-3xl font-black">通知</h1>
+    <p class="mt-2 text-sm text-zinc-500">评论回复、点赞和系统消息会出现在这里。</p>
+  </div>
+
+  <div class="space-y-3">
+    {% for notification in notifications %}
+      <article class="rounded-lg border {% if notification.is_read %}border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950{% else %}border-brand/40 bg-brand/5{% endif %} p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="font-black">{{ notification.title }}</h2>
+            {% if notification.body %}
+              <p class="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ notification.body }}</p>
+            {% endif %}
+            <p class="mt-2 text-xs text-zinc-500">{{ notification.created_at|date:"Y-m-d H:i" }}</p>
+          </div>
+          {% if not notification.is_read %}
+            <form method="post" action="{% url 'notification_read' notification.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white">查看并标记已读</button>
+            </form>
+          {% elif notification.target_url %}
+            <a href="{{ notification.target_url }}" class="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold transition hover:border-brand hover:text-brand dark:border-zinc-700">查看</a>
+          {% endif %}
+        </div>
+      </article>
+    {% empty %}
+      {% include "components/empty_state.html" with icon="comments" title="还没有通知" description="当有人回复或喜欢你的评论时，会在这里提醒你。" %}
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

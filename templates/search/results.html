@@ -8,10 +8,17 @@
     <h1 class="text-3xl font-black">搜索</h1>
     <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{% if query %}“{{ query }}” 的结果{% else %}输入关键词搜索歌曲、专辑和用户{% endif %}</p>
   </div>
+  {% if page_notice %}
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+      {{ page_notice }}
+    </div>
+  {% endif %}
   <section data-play-queue="search-tracks">
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-xl font-black">歌曲</h2>
-      <span class="text-sm text-zinc-500">{{ tracks|length }} 条</span>
+      <span class="text-sm text-zinc-500">
+        {% if pagination %}{{ pagination.total_items }} 条{% else %}0 条{% endif %}
+      </span>
     </div>
     <div class="overflow-hidden rounded-lg bg-zinc-50 dark:bg-zinc-950">
       {% for track in tracks %}
@@ -20,6 +27,9 @@
         {% include "components/empty_state.html" with icon="search" title="没有找到歌曲" description="试试更短的关键词，或者换歌名、歌手名再搜一次。" %}
       {% endfor %}
     </div>
+    {% if pagination %}
+      {% include "components/pagination.html" with pagination=pagination %}
+    {% endif %}
   </section>
   <section>
     <h2 class="mb-4 text-xl font-black">专辑</h2>

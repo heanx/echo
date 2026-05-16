@@ -33,6 +33,20 @@
           {% endif %}
         </div>
         <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ profile_user.profile.bio|default:"这个用户还没有留下简介。" }}</p>
+        <dl class="mt-5 grid gap-3 text-sm text-zinc-500 sm:grid-cols-3">
+          <div class="rounded-lg bg-white px-4 py-3 dark:bg-zinc-900">
+            <dt class="font-bold text-zinc-900 dark:text-white">加入时间</dt>
+            <dd class="mt-1">{{ profile_stats.joined_at|date:"Y-m-d" }}</dd>
+          </div>
+          <div class="rounded-lg bg-white px-4 py-3 dark:bg-zinc-900">
+            <dt class="font-bold text-zinc-900 dark:text-white">公开作品</dt>
+            <dd class="mt-1">{{ profile_stats.uploaded_count }} 首</dd>
+          </div>
+          <div class="rounded-lg bg-white px-4 py-3 dark:bg-zinc-900">
+            <dt class="font-bold text-zinc-900 dark:text-white">公开评论</dt>
+            <dd class="mt-1">{{ profile_stats.comment_count }} 条</dd>
+          </div>
+        </dl>
       </div>
     </div>
   </div>

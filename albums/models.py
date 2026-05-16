@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -47,3 +48,50 @@ class AlbumTrack(models.Model):
 
     def __str__(self):
         return f"{self.album} - {self.track}"
+
+
+class Playlist(models.Model):
+    title = models.CharField("歌单名", max_length=200)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="playlists")
+    description = models.TextField("简介", blank=True)
+    is_public = models.BooleanField("公开", default=True)
+    cover_theme = models.CharField("封面主题", max_length=40, default="eclipse")
+    tracks = models.ManyToManyField("tracks.Track", through="PlaylistTrack", related_name="playlists", blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["owner", "-updated_at"]),
+            models.Index(fields=["is_public", "-updated_at"]),
+        ]
+        verbose_name = "歌单"
+        verbose_name_plural = "歌单"
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def creator(self):
+        return self.owner.profile.name if hasattr(self.owner, "profile") else self.owner.get_username()
+
+
+class PlaylistTrack(models.Model):
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, related_name="playlist_tracks")
+    track = models.ForeignKey("tracks.Track", on_delete=models.CASCADE, related_name="playlist_tracks")
+    position = models.PositiveIntegerField(default=0)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "added_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["playlist", "track"], name="unique_playlist_track"),
+        ]
+        indexes = [
+            models.Index(fields=["playlist", "position"]),
+            models.Index(fields=["track", "added_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.playlist} - {self.track}"

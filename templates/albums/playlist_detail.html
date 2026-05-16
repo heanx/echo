@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ playlist.title }} - Echo{% endblock %}
+
+{% block main %}
+<section class="space-y-6">
+  <div class="grid gap-6 rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-950 md:grid-cols-[180px_minmax(0,1fr)]">
+    <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-2xl text-5xl font-black text-white">♫</span>
+    <div class="min-w-0">
+      <p class="text-sm font-bold uppercase tracking-[0.18em] text-brand">Playlist</p>
+      <h1 class="mt-2 truncate text-4xl font-black">{{ playlist.title }}</h1>
+      <p class="mt-2 text-sm text-zinc-500">{{ playlist.creator }} · {{ playlist.playlist_tracks.count }} 首</p>
+      <p class="mt-4 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ playlist.description|default:"这个歌单还没有简介。" }}</p>
+      {% if request.user == playlist.owner %}
+        <div class="mt-5 flex flex-wrap gap-2">
+          <a href="{% url 'albums:playlist_edit' playlist.pk %}" class="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold transition hover:border-brand hover:text-brand dark:border-zinc-700">编辑歌单</a>
+          <form method="post" action="{% url 'albums:playlist_delete' playlist.pk %}" onsubmit="return confirm('确定删除这个歌单吗？');">
+            {% csrf_token %}
+            <button type="submit" class="rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 dark:border-red-900/70 dark:hover:bg-red-950/40">删除歌单</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if add_form %}
+    <form method="post" action="{% url 'albums:playlist_add_track' playlist.pk %}" class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:grid-cols-[minmax(0,1fr)_120px_auto]">
+      {% csrf_token %}
+      {{ add_form.track }}
+      {{ add_form.position }}
+      <button type="submit" class="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white transition hover:bg-brand-dark">添加歌曲</button>
+    </form>
+  {% endif %}
+
+  <section data-play-queue="playlist-{{ playlist.pk }}">
+    <h2 class="mb-4 text-xl font-black">歌曲</h2>
+    <div class="overflow-hidden rounded-lg bg-zinc-50 dark:bg-zinc-950">
+      {% for item in playlist.playlist_tracks.all %}
+        <div class="border-b border-zinc-200 last:border-b-0 dark:border-zinc-800">
+          {% include "components/track_row.html" with track=item.track %}
+          {% if request.user == playlist.owner %}
+            <div class="flex flex-wrap items-center justify-end gap-2 px-4 pb-3 text-sm">
+              <form method="post" action="{% url 'albums:playlist_reorder_track' playlist.pk item.pk %}" class="flex items-center gap-2">
+                {% csrf_token %}
+                <label class="text-zinc-500" for="position-{{ item.pk }}">排序</label>
+                <input id="position-{{ item.pk }}" name="position" value="{{ item.position }}" class="w-20 rounded-lg border border-zinc-300 bg-white px-3 py-1 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+                <button type="submit" class="font-bold text-brand">保存</button>
+              </form>
+              <form method="post" action="{% url 'albums:playlist_remove_track' playlist.pk item.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="font-bold text-red-600">移除</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        {% include "components/empty_state.html" with icon="music" title="歌单里还没有歌曲" description="从上方选择一首已发布作品加入歌单。" %}
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

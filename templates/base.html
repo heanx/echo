@@ -69,13 +69,13 @@
           <svg viewBox="0 0 24 24" class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></svg>
           <span class="echo-tooltip top-tooltip" role="tooltip">切换主题</span>
         </button>
-        <button type="button" data-top-action="messages" class="has-tooltip relative hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 md:grid dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="消息">
+        <a href="{% url 'notifications' %}" data-top-action="messages" class="has-tooltip relative hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 md:grid dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="消息">
           {% if unread_message_count|default:0 %}
             <span class="absolute right-2 top-2 h-3 w-3 rounded-full bg-rose-500"></span>
           {% endif %}
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span class="echo-tooltip top-tooltip" role="tooltip">消息</span>
-        </button>
+        </a>
         <button type="button" data-top-action="friends" class="has-tooltip hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-200 transition hover:bg-zinc-300 lg:grid dark:bg-zinc-900 dark:hover:bg-zinc-800" aria-label="好友">
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span class="echo-tooltip top-tooltip" role="tooltip">好友</span>
@@ -189,7 +189,7 @@
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">发布一首新的音频作品</span>
                       </span>
                     </a>
-                    <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                    <a href="{% url 'albums:playlist_create' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M12 8h.01M15 8h.01"/></svg>
                       </span>
@@ -197,8 +197,8 @@
                         <span class="block truncate text-sm font-bold">歌单</span>
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">创建包含歌曲或单集的歌单</span>
                       </span>
-                    </button>
-                    <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                    </a>
+                    <a href="{% url 'albums:playlists' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/></svg>
                       </span>
@@ -206,7 +206,7 @@
                         <span class="block truncate text-sm font-bold">共享合辑</span>
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">将好友的音乐喜好合并为一个歌单</span>
                       </span>
-                    </button>
+                    </a>
                     <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V6a2 2 0 0 1 2-2h5l2 3h5a2 2 0 0 1 2 2v11H4Z"/></svg>

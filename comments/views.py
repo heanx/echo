@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from core.models import Notification
 from tracks.models import Track
 
 from .models import TrackComment, TrackCommentReaction
@@ -43,6 +44,15 @@ def create_comment(request, track_id):
         )
         if comment.parent_id:
             TrackComment.objects.filter(pk=comment.parent_id).update(reply_count=F("reply_count") + 1)
+            if comment.parent.user_id and comment.parent.user_id != request.user.id:
+                Notification.objects.create(
+                    recipient=comment.parent.user,
+                    actor=request.user,
+                    kind=Notification.KIND_COMMENT_REPLY,
+                    title=f"{request.user.profile.name} 回复了你的评论",
+                    body=body[:160],
+                    target_url=f"/comments/?track={track.pk}#comment-{comment.pk}",
+                )
 
     if request.headers.get("HX-Request"):
         return render(
@@ -60,6 +70,15 @@ def toggle_comment_like(request, comment_id):
     reaction, created = TrackCommentReaction.objects.get_or_create(comment=comment, user=request.user, reaction="like")
     if created:
         TrackComment.objects.filter(pk=comment.pk).update(like_count=F("like_count") + 1)
+        if comment.user_id and comment.user_id != request.user.id:
+            Notification.objects.create(
+                recipient=comment.user,
+                actor=request.user,
+                kind=Notification.KIND_COMMENT_LIKE,
+                title=f"{request.user.profile.name} 喜欢了你的评论",
+                body=comment.body[:160],
+                target_url=f"/comments/?track={comment.track_id}#comment-{comment.pk}",
+            )
         liked = True
     else:
         reaction.delete()

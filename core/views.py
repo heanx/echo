@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseNotAllowed
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
@@ -9,9 +10,10 @@ from albums.models import Album
 from comments.models import TrackComment
 from comments.queries import get_comment_page_context
 from tracks.models import Track
+from tracks.views import _paginate_queryset
 
 from .forms import AccountSecurityForm, EchoAuthenticationForm, EchoUserCreationForm, UserProfileForm
-from .models import UserProfile
+from .models import Notification, UserProfile
 
 
 User = get_user_model()
@@ -180,6 +182,11 @@ def profile_view(request, username):
     )
     uploaded_tracks = Track.objects.filter(owner=profile_user, status=Track.STATUS_PUBLISHED).order_by("-created_at")
     recent_comments = TrackComment.objects.filter(user=profile_user, status=TrackComment.STATUS_PUBLISHED).select_related("track").order_by("-created_at")[:10]
+    profile_stats = {
+        "joined_at": profile_user.date_joined,
+        "uploaded_count": uploaded_tracks.count(),
+        "comment_count": TrackComment.objects.filter(user=profile_user, status=TrackComment.STATUS_PUBLISHED).count(),
+    }
     return render(
         request,
         "profile/detail.html",
@@ -187,8 +194,25 @@ def profile_view(request, username):
             "profile_user": profile_user,
             "uploaded_tracks": uploaded_tracks,
             "recent_comments": recent_comments,
+            "profile_stats": profile_stats,
         },
     )
+
+
+@login_required
+def notifications(request):
+    items = request.user.notifications.select_related("actor")[:50]
+    return render(request, "core/notifications.html", {"notifications": items})
+
+
+@login_required
+def mark_notification_read(request, pk):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notification.is_read = True
+    notification.save(update_fields=["is_read"])
+    return redirect(notification.target_url or "notifications")
 
 
 def search_view(request):
@@ -196,8 +220,11 @@ def search_view(request):
     tracks = Track.objects.none()
     albums = Album.objects.none()
     users = User.objects.none()
+    page_obj = None
+    pagination = None
+    page_notice = ""
     if query:
-        tracks = Track.objects.filter(
+        track_queryset = Track.objects.filter(
             status=Track.STATUS_PUBLISHED
         ).filter(
             Q(title__icontains=query)
@@ -205,24 +232,29 @@ def search_view(request):
             | Q(description__icontains=query)
             | Q(owner__username__icontains=query)
             | Q(owner__profile__display_name__icontains=query)
-        ).distinct()
+        ).distinct().order_by("-created_at")
+        page_obj, pagination, page_notice = _paginate_queryset(request, track_queryset)
+        tracks = page_obj.object_list
         albums = Album.objects.filter(
             Q(title__icontains=query) | Q(creator__icontains=query) | Q(description__icontains=query)
-        ).distinct()[:6]
+        ).distinct().order_by("title")[:6]
         users = User.objects.filter(
             Q(username__icontains=query)
             | Q(first_name__icontains=query)
             | Q(last_name__icontains=query)
             | Q(profile__display_name__icontains=query)
-        ).select_related("profile").distinct()[:6]
+        ).select_related("profile").distinct().order_by("username")[:6]
     return render(
         request,
         "search/results.html",
         {
             "query": query,
-            "tracks": tracks[:20] if query else tracks,
+            "tracks": tracks,
             "albums": albums,
             "users": users,
+            "page_obj": page_obj,
+            "pagination": pagination,
+            "page_notice": page_notice,
         },
     )
 

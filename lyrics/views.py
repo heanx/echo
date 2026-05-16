@@ -45,6 +45,7 @@ def upload_lyrics(request):
             source_file = None
         elif source_file and not raw_text:
             raw_text = source_file.read().decode("utf-8", errors="ignore")
+            source_file.seek(0)
 
         lyrics, _ = TrackLyrics.objects.update_or_create(
             track=track,
