@@ -55,10 +55,16 @@
           <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z"/></svg>
           <span class="echo-tooltip top-tooltip" role="tooltip">首页</span>
         </a>
-        <form class="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full bg-zinc-200/80 px-3 sm:h-12 sm:gap-3 sm:px-5 dark:bg-zinc-900" action="{% url 'search' %}">
-          <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input name="q" class="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑或用户..." autocomplete="off">
-        </form>
+        <div class="top-search-box relative min-w-0 flex-1">
+          <form id="top-search-form" class="flex h-11 min-w-0 items-center gap-2 rounded-full bg-zinc-200/80 px-3 ring-0 transition focus-within:bg-white focus-within:ring-2 focus-within:ring-zinc-950 sm:h-12 sm:gap-3 sm:px-5 dark:bg-zinc-900 dark:focus-within:bg-zinc-800 dark:focus-within:ring-white" action="{% url 'search' %}" autocomplete="off">
+            <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="top-search-input" name="q" value="{{ request.GET.q|default:'' }}" class="w-full min-w-0 bg-transparent text-sm font-semibold outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑或用户..." autocomplete="off" aria-autocomplete="list" aria-controls="top-search-suggestions" aria-expanded="false">
+            <button id="top-search-clear" type="button" class="hidden h-8 w-8 shrink-0 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-300 hover:text-zinc-950 dark:hover:bg-zinc-700 dark:hover:text-white" aria-label="清除搜索词">
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </form>
+          <div id="top-search-suggestions" class="absolute left-0 right-0 top-[calc(100%+8px)] z-[900] hidden max-h-[min(520px,calc(100vh_-_var(--top-row-height)_-_var(--player-row-height)_-_48px))] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-2 text-zinc-950 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 dark:text-white echo-scrollbar" data-play-queue="search-suggestions" data-context-menu-kind="search"></div>
+        </div>
         <span class="top-search-balance hidden sm:block" aria-hidden="true"></span>
       </div>
       </div>
@@ -282,7 +288,12 @@
             <svg data-context-icon="rail" viewBox="0 0 24 24" class="h-5 w-5 hidden" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5v14"/><path d="M8 8h4"/><path d="M8 12h4"/><path d="M8 16h4"/></svg>
             <span id="context-close-tooltip" class="echo-tooltip context-tooltip" role="tooltip">折叠播放上下文</span>
           </button>
-          <h2 id="context-panel-title" class="context-title font-bold">正在播放</h2>
+          <h2 class="context-title flex min-w-0 items-center gap-3 font-bold">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5v14"/><path d="M8 8h4"/><path d="M8 12h4"/><path d="M8 16h4"/></svg>
+            </span>
+            <span id="context-panel-title" class="min-w-0 truncate">正在播放</span>
+          </h2>
         </div>
         <div class="context-body min-h-0 flex-1 overflow-y-auto p-5 echo-scrollbar">
           <section class="context-view is-active" data-context-view="now">
@@ -295,7 +306,10 @@
 
           <section class="context-view" data-context-view="playlist">
             <div class="mb-2 flex items-center justify-between px-2">
-              <h3 class="text-sm font-bold">接下来播放</h3>
+              <span class="min-w-0">
+                <h3 class="text-sm font-bold">接下来播放</h3>
+                <span id="playlist-queue-source" class="mt-0.5 block truncate text-xs text-zinc-500">默认播放队列</span>
+              </span>
               <span id="playlist-track-count" class="text-xs text-zinc-500">{{ shell_queue_tracks|length|default:0 }} 首</span>
             </div>
             <div id="playlist-track-list" class="space-y-1" data-play-queue="sidebar-playlist" data-context-menu-kind="queue">
@@ -427,6 +441,8 @@
       "homeUrl": "{% url 'home' %}",
       "lyricsUrl": "{% url 'lyrics' %}",
       "commentsUrl": "{% url 'comments' %}",
+      "searchUrl": "{% url 'search' %}",
+      "searchSuggestUrl": "{% url 'search_suggest' %}",
       "trackPlayUrlTemplate": "/tracks/__track_id__/play/",
       "csrfToken": "{{ csrf_token }}"
     }
@@ -435,6 +451,6 @@
   <script>
     window.EchoConfig = JSON.parse(document.getElementById("echo-config").textContent);
   </script>
-  <script defer src="{% static 'js/echo-shell.js' %}?v=20260513-shuffle-repeat-fix"></script>
+  <script defer src="{% static 'js/echo-shell.js' %}?v=20260518-search-restore"></script>
 </body>
 </html>

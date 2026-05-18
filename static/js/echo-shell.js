@@ -4,6 +4,10 @@
       const toastRegion = document.getElementById("echo-toast-region");
       const topBar = document.getElementById("top-bar");
       const topSearchWrap = document.querySelector(".top-search-wrap");
+      const topSearchForm = document.getElementById("top-search-form");
+      const topSearchInput = document.getElementById("top-search-input");
+      const topSearchClear = document.getElementById("top-search-clear");
+      const topSearchSuggestions = document.getElementById("top-search-suggestions");
       const shell = document.getElementById("content-grid");
       const playbackBar = document.getElementById("playback-bar");
       const playbackControls = document.querySelector(".playback-controls");
@@ -39,6 +43,8 @@
       const sideTitle = document.getElementById("side-title");
       const sideArtist = document.getElementById("side-artist");
       const playlistTrackList = document.getElementById("playlist-track-list");
+      const playlistTrackCount = document.getElementById("playlist-track-count");
+      const playlistQueueSource = document.getElementById("playlist-queue-source");
       const shuffleToggle = document.getElementById("shuffle-toggle");
       const shuffleIcon = document.getElementById("shuffle-icon");
       const toggle = document.getElementById("player-toggle");
@@ -85,6 +91,9 @@
       let shufflePool = [];
       let playbackHistory = [];
       let lastPersistedPlaybackSecond = -1;
+      let searchSuggestAbort = null;
+      let searchSuggestTimer = 0;
+      let searchSuggestRequestId = 0;
 
       var lyricDistClasses = ["lyric-dist-0", "lyric-dist-1", "lyric-dist-2", "lyric-dist-3", "lyric-dist-4", "lyric-dist-far"];
 
@@ -166,12 +175,111 @@
           return item && String(item.id) === String(trackId);
         });
       }
+      function queueDisplayName(name) {
+        if (!name) return "默认播放队列";
+        if (name === "sidebar-playlist") return "默认播放队列";
+        if (name === "recent-tracks") return "最近播放";
+        if (name === "recommended-tracks") return "首页推荐";
+        if (name === "latest-tracks") return "最新音乐";
+        if (name === "search-tracks") return "搜索结果";
+        if (name === "track-detail") return "作品详情";
+        if (name === "profile-tracks") return "个人主页";
+        if (name.indexOf("playlist-") === 0) return "歌单";
+        if (name === "hero-track") return "首页主打";
+        return name.replace(/[-_]+/g, " ");
+      }
+      function renderPlayQueue() {
+        if (!playlistTrackList) return;
+        playlistTrackList.innerHTML = "";
+        if (playlistTrackCount) {
+          var positionText = playQueueIndex >= 0 && playQueue.length
+            ? "第 " + (playQueueIndex + 1) + " / " + playQueue.length + " 首"
+            : playQueue.length + " 首";
+          playlistTrackCount.textContent = positionText;
+        }
+        if (playlistQueueSource) {
+          playlistQueueSource.textContent = queueDisplayName(playQueueName);
+        }
+        if (!playQueue.length) {
+          var empty = document.createElement("div");
+          empty.className = "rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400";
+          empty.textContent = "暂时没有可播放的作品";
+          playlistTrackList.appendChild(empty);
+          return;
+        }
+        playQueue.forEach(function (track, index) {
+          var button = document.createElement("div");
+          button.className = "playlist-track group grid w-full grid-cols-[26px_44px_minmax(0,1fr)_28px] items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900";
+          button.setAttribute("role", "button");
+          button.setAttribute("tabindex", "0");
+          button.dataset.echoTrack = "";
+          button.dataset.src = track.src || "";
+          button.dataset.id = track.id || "";
+          button.dataset.title = track.title || "";
+          button.dataset.artist = track.artist || "";
+          button.dataset.cover = track.cover || "summer";
+          button.dataset.coverUrl = track.coverUrl || "";
+          button.setAttribute("aria-label", "播放 " + (track.title || "未命名音频"));
+          button.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              button.click();
+            }
+          });
+
+          var indexWrap = document.createElement("span");
+          indexWrap.className = "grid h-6 w-6 place-items-center text-xs font-bold text-zinc-500";
+          var indexText = document.createElement("span");
+          indexText.className = "playlist-track-index";
+          indexText.textContent = String(index + 1);
+          var playingMark = document.createElement("span");
+          playingMark.className = "playlist-playing-mark h-2 w-2 rounded-full bg-brand";
+          playingMark.setAttribute("aria-hidden", "true");
+          indexWrap.appendChild(indexText);
+          indexWrap.appendChild(playingMark);
+
+          var coverNode = document.createElement("span");
+          coverNode.className = "cover-media h-11 w-11 rounded-lg";
+          setCover(coverNode, track.cover || "summer", track.coverUrl || "");
+
+          var meta = document.createElement("span");
+          meta.className = "min-w-0";
+          var trackTitle = document.createElement("span");
+          trackTitle.className = "block truncate text-sm font-bold";
+          trackTitle.textContent = track.title || "未命名音频";
+          var trackArtist = document.createElement("span");
+          trackArtist.className = "mt-0.5 block truncate text-xs text-zinc-500 dark:text-zinc-400";
+          trackArtist.textContent = track.artist || "Echo 用户";
+          meta.appendChild(trackTitle);
+          meta.appendChild(trackArtist);
+
+          var details = document.createElement("a");
+          details.className = "grid h-7 w-7 place-items-center rounded-full text-zinc-500 opacity-0 transition hover:bg-zinc-200 hover:text-zinc-900 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-zinc-800 dark:hover:text-white";
+          details.href = "/tracks/" + encodeURIComponent(track.id || "") + "/";
+          details.setAttribute("aria-label", "查看详情");
+          details.innerHTML = '<span aria-hidden="true">...</span>';
+          details.addEventListener("click", function (event) {
+            event.stopPropagation();
+          });
+          details.addEventListener("pointerdown", function (event) {
+            event.stopPropagation();
+          });
+
+          button.appendChild(indexWrap);
+          button.appendChild(coverNode);
+          button.appendChild(meta);
+          button.appendChild(details);
+          playlistTrackList.appendChild(button);
+        });
+        if (currentTrackId) setCurrentTrack(currentTrackId);
+      }
       function persistPlayQueue() {
         writePersistedValue("echo_play_queue_name", playQueueName || "");
         writePersistedValue("echo_play_queue_index", playQueueIndex >= 0 ? String(playQueueIndex) : "-1");
         try {
           localStorage.setItem("echo_play_queue", JSON.stringify(playQueue));
         } catch (_error) {}
+        renderPlayQueue();
       }
       function restorePersistedPlayQueue() {
         try {
@@ -476,7 +584,7 @@
           queue = queueTracksFromContainer(playlistTrackList);
         }
         return {
-          name: container ? (container.dataset.playQueue || "") : "",
+          name: container ? (container.dataset.playQueueLabel || container.dataset.playQueue || "") : "",
           queue: queue,
           index: queueIndexForTrack(queue, track && track.id),
         };
@@ -1059,6 +1167,294 @@
         setPlaying(true);
         return true;
       }
+      function revealPlaylistContext() {
+        pushContextView("playlist");
+        applyContext(true);
+      }
+      function queueElementIndex(element) {
+        if (!playlistTrackList || !element) return -1;
+        var item = element.closest(".playlist-track[data-echo-track]");
+        if (!item || !playlistTrackList.contains(item)) return -1;
+        return Array.from(playlistTrackList.querySelectorAll(".playlist-track[data-echo-track]")).indexOf(item);
+      }
+      function insertTrackInPlayQueue(track, placement) {
+        var normalizedTrack = normalizeTrack(track);
+        if (!normalizedTrack) return false;
+        if (!playQueue.length) ensurePlayQueue(currentTrackId || normalizedTrack.id);
+        if (!playQueue.length) {
+          playQueue = [normalizedTrack];
+          playQueueIndex = currentTrackId && String(currentTrackId) === String(normalizedTrack.id) ? 0 : -1;
+          playQueueName = playQueueName || "manual";
+        } else if (placement === "next") {
+          playQueue.splice(playQueueIndex >= 0 ? playQueueIndex + 1 : 0, 0, normalizedTrack);
+        } else {
+          playQueue.push(normalizedTrack);
+        }
+        persistPlayQueue();
+        revealPlaylistContext();
+        showToast(placement === "next" ? "\u5df2\u6dfb\u52a0\u5230\u4e0b\u4e00\u9996\u64ad\u653e\u3002" : "\u5df2\u52a0\u5165\u64ad\u653e\u961f\u5217\u3002", "info");
+        return true;
+      }
+      function moveQueueElementNext(element) {
+        var index = queueElementIndex(element);
+        if (index < 0 || index >= playQueue.length) return false;
+        var item = playQueue.splice(index, 1)[0];
+        if (index < playQueueIndex) playQueueIndex -= 1;
+        var insertAt = playQueueIndex >= 0 ? playQueueIndex + 1 : 0;
+        playQueue.splice(insertAt, 0, item);
+        if (index === playQueueIndex) playQueueIndex = insertAt;
+        persistPlayQueue();
+        revealPlaylistContext();
+        showToast("\u5df2\u79fb\u5230\u4e0b\u4e00\u9996\u64ad\u653e\u3002", "info");
+        return true;
+      }
+      function removeTrackFromPlayQueue(element) {
+        var index = queueElementIndex(element);
+        if (index < 0 || index >= playQueue.length) return false;
+        playQueue.splice(index, 1);
+        if (!playQueue.length) {
+          playQueueIndex = -1;
+        } else if (index < playQueueIndex) {
+          playQueueIndex -= 1;
+        } else if (index === playQueueIndex) {
+          playQueueIndex = Math.min(playQueueIndex, playQueue.length - 1);
+        }
+        persistPlayQueue();
+        revealPlaylistContext();
+        showToast("\u5df2\u4ece\u64ad\u653e\u961f\u5217\u79fb\u9664\u3002", "info");
+        return true;
+      }
+      var trackContextMenu = null;
+      var trackContextElement = null;
+      function contextMenuKind(element) {
+        var holder = element ? element.closest("[data-context-menu-kind]") : null;
+        if (holder && holder.dataset.contextMenuKind) return holder.dataset.contextMenuKind;
+        if (element && element.closest("#playlist-track-list")) return "queue";
+        if (element && element.closest("[data-echo-resource='track-detail']")) return "detail";
+        return "track";
+      }
+      function ensureTrackContextMenu() {
+        if (trackContextMenu) return trackContextMenu;
+        trackContextMenu = document.createElement("div");
+        trackContextMenu.id = "echo-track-context-menu";
+        trackContextMenu.className = "track-context-menu";
+        trackContextMenu.setAttribute("role", "menu");
+        trackContextMenu.setAttribute("aria-hidden", "true");
+        document.body.appendChild(trackContextMenu);
+        return trackContextMenu;
+      }
+      function hideTrackContextMenu() {
+        if (!trackContextMenu) return;
+        trackContextMenu.classList.remove("is-open");
+        trackContextMenu.setAttribute("aria-hidden", "true");
+        trackContextElement = null;
+      }
+      function addTrackContextMenuItem(menu, label, action, danger) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "track-context-menu-item" + (danger ? " is-danger" : "");
+        button.setAttribute("role", "menuitem");
+        button.textContent = label;
+        button.addEventListener("click", function () {
+          var element = trackContextElement;
+          var track = trackFromElement(element);
+          hideTrackContextMenu();
+          action(track, element);
+        });
+        menu.appendChild(button);
+      }
+      function showTrackContextMenu(event, trigger) {
+        var track = trackFromElement(trigger);
+        if (!track) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var menu = ensureTrackContextMenu();
+        menu.innerHTML = "";
+        trackContextElement = trigger;
+        var kind = contextMenuKind(trigger);
+        addTrackContextMenuItem(menu, kind === "detail" ? "\u64ad\u653e\u8fd9\u9996" : "\u7acb\u5373\u64ad\u653e", function (item, element) {
+          var queueContext = resolveQueueContext(element);
+          playTrack(item, { source: "context-menu", queue: queueContext.queue, queueName: queueContext.name });
+        });
+        if (kind === "queue") {
+          addTrackContextMenuItem(menu, "\u79fb\u5230\u4e0b\u4e00\u9996\u64ad\u653e", function (_item, element) {
+            moveQueueElementNext(element);
+          });
+          addTrackContextMenuItem(menu, "\u4ece\u64ad\u653e\u961f\u5217\u79fb\u9664", function (_item, element) {
+            removeTrackFromPlayQueue(element);
+          }, true);
+          addTrackContextMenuItem(menu, "\u67e5\u770b\u6b4c\u66f2", function (item) {
+            if (item && item.id) window.location.href = "/tracks/" + encodeURIComponent(item.id) + "/";
+          });
+        } else {
+          addTrackContextMenuItem(menu, "\u4e0b\u4e00\u9996\u64ad\u653e", function (item) {
+            insertTrackInPlayQueue(item, "next");
+          });
+          addTrackContextMenuItem(menu, "\u52a0\u5165\u64ad\u653e\u961f\u5217", function (item) {
+            insertTrackInPlayQueue(item, "end");
+          });
+          if (kind !== "detail") {
+            addTrackContextMenuItem(menu, "\u67e5\u770b\u6b4c\u66f2", function (item) {
+              if (item && item.id) window.location.href = "/tracks/" + encodeURIComponent(item.id) + "/";
+            });
+          }
+        }
+        var margin = 10;
+        menu.classList.add("is-open");
+        menu.setAttribute("aria-hidden", "false");
+        var rect = menu.getBoundingClientRect();
+        var left = Math.min(event.clientX, window.innerWidth - rect.width - margin);
+        var top = Math.min(event.clientY, window.innerHeight - rect.height - margin);
+        menu.style.left = Math.max(margin, left) + "px";
+        menu.style.top = Math.max(margin, top) + "px";
+      }
+
+      function searchUrlFor(query) {
+        var params = new URLSearchParams();
+        params.set("q", query || "");
+        return (echoConfig.searchUrl || "/search/") + "?" + params.toString();
+      }
+      function showTopSearchSuggestions() {
+        if (!topSearchSuggestions) return;
+        topSearchSuggestions.classList.remove("hidden");
+        if (topSearchInput) topSearchInput.setAttribute("aria-expanded", "true");
+      }
+      function hideTopSearchSuggestions() {
+        if (!topSearchSuggestions) return;
+        topSearchSuggestions.classList.add("hidden");
+        if (topSearchInput) topSearchInput.setAttribute("aria-expanded", "false");
+      }
+      function syncTopSearchClear() {
+        if (!topSearchClear || !topSearchInput) return;
+        topSearchClear.classList.toggle("hidden", !topSearchInput.value.trim());
+        topSearchClear.classList.toggle("grid", Boolean(topSearchInput.value.trim()));
+      }
+      function appendSuggestionIcon(parent) {
+        var icon = document.createElement("span");
+        icon.className = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300";
+        icon.innerHTML = '<svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+        parent.appendChild(icon);
+      }
+      function appendTrackCover(parent, track) {
+        var coverNode = document.createElement("span");
+        coverNode.className = "grid h-12 w-12 shrink-0 place-items-center rounded bg-cover bg-center text-white";
+        if (track.cover_url) {
+          coverNode.style.backgroundImage = 'url("' + track.cover_url + '")';
+        } else {
+          coverNode.classList.add("cover-" + (track.cover_theme || "summer"));
+        }
+        parent.appendChild(coverNode);
+      }
+      function renderTopSearchSuggestions(payload) {
+        if (!topSearchSuggestions || !topSearchInput) return;
+        var query = (payload && payload.query) || topSearchInput.value.trim();
+        topSearchSuggestions.replaceChildren();
+
+        var header = document.createElement("div");
+        header.className = "mb-1 flex items-center justify-between gap-3 px-2 py-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400";
+        var browse = document.createElement("span");
+        browse.textContent = "浏览";
+        var submitHint = document.createElement("span");
+        submitHint.className = "rounded border border-zinc-300 px-1.5 py-0.5 dark:border-zinc-700";
+        submitHint.textContent = "回车搜索";
+        header.append(browse, submitHint);
+        topSearchSuggestions.appendChild(header);
+
+        var hasContent = false;
+        (payload.suggestions || []).forEach(function (suggestion) {
+          hasContent = true;
+          var link = document.createElement("a");
+          link.className = "flex items-center gap-4 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
+          link.href = searchUrlFor(suggestion);
+          appendSuggestionIcon(link);
+          var text = document.createElement("span");
+          text.className = "min-w-0 truncate text-base font-bold";
+          text.textContent = suggestion;
+          link.appendChild(text);
+          topSearchSuggestions.appendChild(link);
+        });
+
+        (payload.tracks || []).forEach(function (track) {
+          hasContent = true;
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "group grid w-full grid-cols-[48px_minmax(0,1fr)_32px] items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
+          button.dataset.echoTrack = "";
+          button.dataset.id = track.id || "";
+          button.dataset.src = track.audio_url || "";
+          button.dataset.title = track.title || "";
+          button.dataset.artist = track.artist || "Echo 用户";
+          button.dataset.cover = track.cover_theme || "summer";
+          button.dataset.coverUrl = track.cover_url || "";
+          appendTrackCover(button, track);
+          var meta = document.createElement("span");
+          meta.className = "min-w-0";
+          var title = document.createElement("span");
+          title.className = "block truncate text-base font-bold";
+          title.textContent = track.title || "未命名音频";
+          var artist = document.createElement("span");
+          artist.className = "block truncate text-sm text-zinc-500 dark:text-zinc-400";
+          artist.textContent = "歌曲 · " + (track.artist || "Echo 用户");
+          meta.append(title, artist);
+          var plus = document.createElement("span");
+          plus.className = "grid h-8 w-8 place-items-center rounded-full text-zinc-500 transition group-hover:bg-zinc-200 group-hover:text-zinc-950 dark:group-hover:bg-zinc-700 dark:group-hover:text-white";
+          plus.innerHTML = '<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>';
+          button.append(meta, plus);
+          topSearchSuggestions.appendChild(button);
+        });
+
+        if (!hasContent && query) {
+          var empty = document.createElement("a");
+          empty.className = "flex items-center gap-4 rounded-lg px-3 py-3 transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
+          empty.href = searchUrlFor(query);
+          appendSuggestionIcon(empty);
+          var emptyText = document.createElement("span");
+          var emptyTitle = document.createElement("span");
+          emptyTitle.className = "block font-bold";
+          emptyTitle.textContent = query;
+          var emptyMeta = document.createElement("span");
+          emptyMeta.className = "block text-sm text-zinc-500 dark:text-zinc-400";
+          emptyMeta.textContent = "查看完整搜索结果";
+          emptyText.append(emptyTitle, emptyMeta);
+          empty.appendChild(emptyText);
+          topSearchSuggestions.appendChild(empty);
+        }
+        showTopSearchSuggestions();
+      }
+      function requestTopSearchSuggestions() {
+        if (!topSearchInput || !topSearchSuggestions) return;
+        syncTopSearchClear();
+        var query = topSearchInput.value.trim();
+        if (!query) {
+          hideTopSearchSuggestions();
+          topSearchSuggestions.replaceChildren();
+          return;
+        }
+        window.clearTimeout(searchSuggestTimer);
+        searchSuggestTimer = window.setTimeout(function () {
+          var requestId = ++searchSuggestRequestId;
+          if (searchSuggestAbort) searchSuggestAbort.abort();
+          searchSuggestAbort = new AbortController();
+          var url = (echoConfig.searchSuggestUrl || "/search/suggest/") + "?q=" + encodeURIComponent(query);
+          fetch(url, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            signal: searchSuggestAbort.signal,
+          })
+            .then(function (response) {
+              if (!response.ok) throw new Error("suggest failed");
+              return response.json();
+            })
+            .then(function (payload) {
+              if (requestId !== searchSuggestRequestId) return;
+              renderTopSearchSuggestions(payload || { query: query, suggestions: [], tracks: [] });
+            })
+            .catch(function (error) {
+              if (error && error.name === "AbortError") return;
+              renderTopSearchSuggestions({ query: query, suggestions: [], tracks: [] });
+            });
+        }, 140);
+      }
 
       document.addEventListener("click", function (event) {
         const homeTrigger = event.target.closest("[data-home-nav]");
@@ -1078,6 +1474,7 @@
       applySidebar(localStorage.getItem("echo_sidebar_collapsed") === "true");
       applyContext(true);
       restorePersistedPlayQueue();
+      if (playQueue.length) renderPlayQueue();
       try {
         const savedStack = JSON.parse(localStorage.getItem("echo_context_view_stack") || "[]");
         contextViewStack = Array.isArray(savedStack) && savedStack.length ? savedStack : ["now"];
@@ -1148,6 +1545,35 @@
         const form = event.target.closest("#main-content form");
         if (form) form.dataset.echoDirty = "false";
       });
+      if (topSearchInput) {
+        syncTopSearchClear();
+        topSearchInput.addEventListener("focus", function () {
+          if (topSearchInput.value.trim()) requestTopSearchSuggestions();
+        });
+        topSearchInput.addEventListener("input", requestTopSearchSuggestions);
+        topSearchInput.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            hideTopSearchSuggestions();
+            topSearchInput.blur();
+          }
+        });
+      }
+      if (topSearchClear) {
+        topSearchClear.addEventListener("click", function () {
+          if (!topSearchInput) return;
+          topSearchInput.value = "";
+          topSearchInput.focus();
+          syncTopSearchClear();
+          hideTopSearchSuggestions();
+        });
+      }
+      if (topSearchSuggestions) {
+        topSearchSuggestions.addEventListener("click", function (event) {
+          if (event.target.closest("[data-echo-track]")) {
+            window.setTimeout(hideTopSearchSuggestions, 0);
+          }
+        });
+      }
       themeToggle.addEventListener("click", function () { applyTheme(root.classList.contains("dark") ? "light" : "dark"); });
       tooltipTriggers.forEach(function (trigger) {
         trigger.addEventListener("pointerenter", function () { updateTooltipDirection(trigger); });
@@ -1184,11 +1610,15 @@
       document.addEventListener("click", function (event) {
         if (libraryCreate && !libraryCreate.contains(event.target)) setCreateMenu(false);
         if (accountMenu && !accountMenu.contains(event.target)) setAccountMenu(false);
+        if (topSearchSuggestions && topSearchForm && !topSearchForm.contains(event.target) && !topSearchSuggestions.contains(event.target)) {
+          hideTopSearchSuggestions();
+        }
       });
       document.addEventListener("keydown", function (event) {
         if (event.key === "Escape") {
           setCreateMenu(false);
           setAccountMenu(false);
+          hideTopSearchSuggestions();
         }
       });
       document.body.addEventListener("click", function (event) {
@@ -1367,6 +1797,7 @@
         showToast("当前音频加载失败，请稍后重试。", "error");
       });
       document.body.addEventListener("click", function (event) {
+        hideTrackContextMenu();
         const likeButton = event.target.closest("[data-comment-like]");
         if (likeButton) {
           event.preventDefault();
@@ -1407,6 +1838,23 @@
       document.body.addEventListener("pointerdown", function (event) {
         pointerActivatedTrack = Boolean(event.target.closest("[data-echo-track]"));
       }, true);
+      document.body.addEventListener("contextmenu", function (event) {
+        var trigger = event.target.closest("[data-echo-track]");
+        if (!trigger) {
+          var row = event.target.closest("[data-track-row]");
+          trigger = row ? row.querySelector("[data-echo-track]") : null;
+        }
+        if (!trigger) {
+          hideTrackContextMenu();
+          return;
+        }
+        showTrackContextMenu(event, trigger);
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") hideTrackContextMenu();
+      });
+      window.addEventListener("resize", hideTrackContextMenu);
+      document.addEventListener("scroll", hideTrackContextMenu, true);
       document.addEventListener("wheel", function (event) {
         if (event.target.closest("#main-content [data-echo-resource='lyrics']") && Date.now() - lastAutoScrollTime > 600) {
           lastUserScrollTime = Date.now();

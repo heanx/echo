@@ -1,9 +1,9 @@
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import post_delete
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
-from core.file_cleanup import delete_filefield_file
+from core.file_cleanup import delete_filefield_file, delete_remembered_replaced_files, remember_replaced_files
 
 
 class Track(models.Model):
@@ -77,3 +77,13 @@ class Track(models.Model):
 def delete_track_files(sender, instance, **kwargs):
     delete_filefield_file(instance, "audio_file")
     delete_filefield_file(instance, "cover_image")
+
+
+@receiver(pre_save, sender=Track)
+def remember_track_replaced_files(sender, instance, **kwargs):
+    remember_replaced_files(instance, ["audio_file", "cover_image"])
+
+
+@receiver(post_save, sender=Track)
+def delete_track_replaced_files(sender, instance, **kwargs):
+    delete_remembered_replaced_files(instance)

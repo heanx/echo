@@ -1,9 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseNotAllowed
-from django.db.models import Q
+from django.http import HttpResponseNotAllowed, JsonResponse
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 
 from albums.models import Album
@@ -17,6 +18,9 @@ from .models import Notification, UserProfile
 
 
 User = get_user_model()
+SEARCH_TYPE_CHOICES = {"tracks", "albums", "users"}
+SEARCH_TRACKS_PER_PAGE = 20
+SEARCH_CARDS_PER_PAGE = 12
 
 
 def _home_context(request):
@@ -124,7 +128,14 @@ def login_view(request):
         login(request, form.get_user())
         request.session.set_expiry(60 * 60 * 24 * 30 if form.cleaned_data.get("remember_me") else 0)
         messages.success(request, "欢迎回来。")
-        return redirect(request.GET.get("next") or "home")
+        next_url = request.GET.get("next")
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(next_url)
+        return redirect("home")
     return render(request, "auth/login.html", {"form": form})
 
 
@@ -215,46 +226,204 @@ def mark_notification_read(request, pk):
     return redirect(notification.target_url or "notifications")
 
 
-def search_view(request):
-    query = request.GET.get("q", "").strip()
-    tracks = Track.objects.none()
-    albums = Album.objects.none()
-    users = User.objects.none()
-    page_obj = None
-    pagination = None
-    page_notice = ""
-    if query:
-        track_queryset = Track.objects.filter(
-            status=Track.STATUS_PUBLISHED
-        ).filter(
+def _search_tracks(query):
+    return (
+        Track.objects.filter(status=Track.STATUS_PUBLISHED)
+        .filter(
             Q(title__icontains=query)
             | Q(artist__icontains=query)
             | Q(description__icontains=query)
             | Q(owner__username__icontains=query)
             | Q(owner__profile__display_name__icontains=query)
-        ).distinct().order_by("-created_at")
-        page_obj, pagination, page_notice = _paginate_queryset(request, track_queryset)
-        tracks = page_obj.object_list
-        albums = Album.objects.filter(
+        )
+        .annotate(
+            relevance=(
+                Case(When(title__icontains=query, then=Value(100)), default=Value(0), output_field=IntegerField())
+                + Case(When(artist__icontains=query, then=Value(80)), default=Value(0), output_field=IntegerField())
+                + Case(When(owner__username__icontains=query, then=Value(50)), default=Value(0), output_field=IntegerField())
+                + Case(When(owner__profile__display_name__icontains=query, then=Value(40)), default=Value(0), output_field=IntegerField())
+                + Case(When(description__icontains=query, then=Value(10)), default=Value(0), output_field=IntegerField())
+            )
+        )
+        .select_related("owner", "owner__profile")
+        .distinct()
+        .order_by("-relevance", "-created_at")
+    )
+
+
+def _search_albums(query):
+    return (
+        Album.objects.filter(
             Q(title__icontains=query) | Q(creator__icontains=query) | Q(description__icontains=query)
-        ).distinct().order_by("title")[:6]
-        users = User.objects.filter(
+        )
+        .annotate(
+            relevance=(
+                Case(When(title__icontains=query, then=Value(50)), default=Value(0), output_field=IntegerField())
+                + Case(When(creator__icontains=query, then=Value(30)), default=Value(0), output_field=IntegerField())
+                + Case(When(description__icontains=query, then=Value(5)), default=Value(0), output_field=IntegerField())
+            )
+        )
+        .distinct()
+        .order_by("-relevance", "-created_at")
+    )
+
+
+def _search_users(query):
+    return (
+        User.objects.filter(
             Q(username__icontains=query)
             | Q(first_name__icontains=query)
             | Q(last_name__icontains=query)
             | Q(profile__display_name__icontains=query)
-        ).select_related("profile").distinct().order_by("username")[:6]
+        )
+        .select_related("profile")
+        .distinct()
+        .order_by("username")
+    )
+
+
+def _search_totals(tracks_qs, albums_qs, users_qs):
+    return {
+        "total_tracks": tracks_qs.count(),
+        "total_albums": albums_qs.count(),
+        "total_users": users_qs.count(),
+    }
+
+
+def _track_payload(track):
+    return {
+        "id": track.id,
+        "title": track.title,
+        "artist": track.artist or "Echo 用户",
+        "audio_url": track.audio_url,
+        "cover_theme": track.cover_theme or "summer",
+        "cover_url": track.cover_url,
+        "url": f"/tracks/{track.id}/",
+    }
+
+
+def search_suggest_view(request):
+    query = request.GET.get("q", "").strip()[:200]
+    if not query:
+        return JsonResponse({"query": "", "suggestions": [], "tracks": []})
+
+    tracks = list(_search_tracks(query)[:5])
+    suggestion_values = []
+    seen = set()
+    values = list(Track.objects.filter(status=Track.STATUS_PUBLISHED, title__icontains=query).values_list("title", flat=True)[:4])
+    values += list(Track.objects.filter(status=Track.STATUS_PUBLISHED, artist__icontains=query).values_list("artist", flat=True)[:4])
+    values += list(Album.objects.filter(title__icontains=query).values_list("title", flat=True)[:3])
+    for value in values:
+        normalized = (value or "").strip()
+        key = normalized.lower()
+        if normalized and key not in seen:
+            suggestion_values.append(normalized)
+            seen.add(key)
+        if len(suggestion_values) >= 4:
+            break
+
+    return JsonResponse(
+        {
+            "query": query,
+            "suggestions": suggestion_values,
+            "tracks": [_track_payload(track) for track in tracks],
+        }
+    )
+
+
+def search_view(request):
+    query = request.GET.get("q", "").strip()[:200]
+    search_type = request.GET.get("type", "")
+    if search_type not in SEARCH_TYPE_CHOICES:
+        search_type = ""
+
+    if not query:
+        return render(
+            request,
+            "search/results.html",
+            {
+                "query": query,
+                "tracks": Track.objects.none(),
+                "albums": Album.objects.none(),
+                "users": User.objects.none(),
+                "active_type": "",
+                "total_tracks": 0,
+                "total_albums": 0,
+                "total_users": 0,
+            },
+        )
+
+    tracks_qs = _search_tracks(query)
+    albums_qs = _search_albums(query)
+    users_qs = _search_users(query)
+    totals = _search_totals(tracks_qs, albums_qs, users_qs)
+
+    if search_type == "tracks":
+        page_obj, pagination, page_notice = _paginate_queryset(request, tracks_qs, default_per_page=SEARCH_TRACKS_PER_PAGE)
+        return render(
+            request,
+            "search/results.html",
+            {
+                "query": query,
+                "tracks": page_obj.object_list,
+                "albums": Album.objects.none(),
+                "users": User.objects.none(),
+                "page_obj": page_obj,
+                "pagination": pagination,
+                "page_notice": page_notice,
+                "active_type": "tracks",
+                **totals,
+            },
+        )
+
+    if search_type == "albums":
+        page_obj, pagination, page_notice = _paginate_queryset(request, albums_qs, default_per_page=SEARCH_CARDS_PER_PAGE)
+        return render(
+            request,
+            "search/results.html",
+            {
+                "query": query,
+                "tracks": Track.objects.none(),
+                "albums": page_obj.object_list,
+                "users": User.objects.none(),
+                "page_obj": page_obj,
+                "pagination": pagination,
+                "page_notice": page_notice,
+                "active_type": "albums",
+                **totals,
+            },
+        )
+
+    if search_type == "users":
+        page_obj, pagination, page_notice = _paginate_queryset(request, users_qs, default_per_page=SEARCH_CARDS_PER_PAGE)
+        return render(
+            request,
+            "search/results.html",
+            {
+                "query": query,
+                "tracks": Track.objects.none(),
+                "albums": Album.objects.none(),
+                "users": page_obj.object_list,
+                "page_obj": page_obj,
+                "pagination": pagination,
+                "page_notice": page_notice,
+                "active_type": "users",
+                **totals,
+            },
+        )
+
+    summary_tracks = list(tracks_qs[:21])
     return render(
         request,
         "search/results.html",
         {
             "query": query,
-            "tracks": tracks,
-            "albums": albums,
-            "users": users,
-            "page_obj": page_obj,
-            "pagination": pagination,
-            "page_notice": page_notice,
+            "best_track": summary_tracks[0] if summary_tracks else None,
+            "tracks": summary_tracks[1:21],
+            "albums": albums_qs[:6],
+            "users": users_qs[:6],
+            "active_type": "",
+            **totals,
         },
     )
 

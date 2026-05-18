@@ -1,11 +1,10 @@
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import post_save
-from django.db.models.signals import post_delete
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.templatetags.static import static
 
-from .file_cleanup import delete_filefield_file
+from .file_cleanup import delete_filefield_file, delete_remembered_replaced_files, remember_replaced_files
 
 
 AVATAR_PRESET_CHOICES = [
@@ -91,3 +90,13 @@ def ensure_user_profile(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=UserProfile)
 def delete_profile_avatar(sender, instance, **kwargs):
     delete_filefield_file(instance, "avatar")
+
+
+@receiver(pre_save, sender=UserProfile)
+def remember_profile_replaced_files(sender, instance, **kwargs):
+    remember_replaced_files(instance, ["avatar"])
+
+
+@receiver(post_save, sender=UserProfile)
+def delete_profile_replaced_files(sender, instance, **kwargs):
+    delete_remembered_replaced_files(instance)

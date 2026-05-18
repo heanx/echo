@@ -22,7 +22,7 @@ def create_comment(request, track_id):
     parent = None
     parent_id = request.POST.get("parent")
     if parent_id:
-        parent = get_object_or_404(TrackComment, pk=parent_id, track=track)
+        parent = get_object_or_404(TrackComment, pk=parent_id, track=track, status=TrackComment.STATUS_PUBLISHED)
 
     timestamp_ms = request.POST.get("timestamp_ms") or None
     if timestamp_ms is not None:
@@ -66,7 +66,12 @@ def create_comment(request, track_id):
 @login_required
 @require_POST
 def toggle_comment_like(request, comment_id):
-    comment = get_object_or_404(TrackComment.objects.select_related("track"), pk=comment_id, status=TrackComment.STATUS_PUBLISHED)
+    comment = get_object_or_404(
+        TrackComment.objects.select_related("track"),
+        pk=comment_id,
+        status=TrackComment.STATUS_PUBLISHED,
+        track__status=Track.STATUS_PUBLISHED,
+    )
     reaction, created = TrackCommentReaction.objects.get_or_create(comment=comment, user=request.user, reaction="like")
     if created:
         TrackComment.objects.filter(pk=comment.pk).update(like_count=F("like_count") + 1)

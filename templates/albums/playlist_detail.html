@@ -32,7 +32,7 @@
     </form>
   {% endif %}
 
-  <section data-play-queue="playlist-{{ playlist.pk }}">
+  <section data-play-queue="playlist-{{ playlist.pk }}" data-play-queue-label="歌单：{{ playlist.title }}">
     <h2 class="mb-4 text-xl font-black">歌曲</h2>
     <div class="overflow-hidden rounded-lg bg-zinc-50 dark:bg-zinc-950">
       {% for item in playlist.playlist_tracks.all %}

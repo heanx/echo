@@ -119,8 +119,8 @@ def _build_page_links(page_obj, build_url=None):
     return links
 
 
-def _paginate_queryset(request, queryset):
-    per_page = min(_parse_positive_int(request.GET.get("per"), DEFAULT_PER_PAGE), MAX_PER_PAGE)
+def _paginate_queryset(request, queryset, default_per_page=DEFAULT_PER_PAGE):
+    per_page = min(_parse_positive_int(request.GET.get("per"), default_per_page), MAX_PER_PAGE)
     paginator = Paginator(queryset, per_page)
     requested_page = request.GET.get("page", 1)
     page_notice = ""

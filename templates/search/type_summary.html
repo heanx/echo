@@ -1,0 +1,104 @@
+{% if best_track %}
+<section class="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-900/80" data-play-queue="search-best-track" data-context-menu-kind="search">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">最佳匹配</h2>
+    <span class="rounded bg-zinc-200 px-2 py-1 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">歌曲</span>
+  </div>
+  <article class="grid grid-cols-[76px_minmax(0,1fr)_56px] items-center gap-4 rounded-lg bg-zinc-200/70 p-3 dark:bg-zinc-800/80 sm:grid-cols-[96px_minmax(0,1fr)_64px]">
+    <a
+      href="{% url 'tracks:detail' best_track.id %}"
+      class="{% if not best_track.cover_url %}cover-{{ best_track.cover_theme|default:'summer' }}{% endif %} grid h-20 w-20 place-items-center rounded bg-cover bg-center text-white sm:h-24 sm:w-24"
+      {% if best_track.cover_url %}style="background-image: url('{{ best_track.cover_url }}');"{% endif %}
+      aria-label="查看 {{ best_track.title }}">
+    </a>
+    <div class="min-w-0">
+      <a href="{% url 'tracks:detail' best_track.id %}" class="block truncate text-2xl font-black transition hover:underline sm:text-3xl">{{ best_track.title }}</a>
+      <p class="mt-1 truncate text-sm font-semibold text-zinc-500 dark:text-zinc-400">歌曲 · {{ best_track.artist|default:"Echo 用户" }}</p>
+    </div>
+    <button
+      type="button"
+      class="grid h-12 w-12 place-items-center rounded-full bg-brand text-white shadow-soft transition hover:scale-105 sm:h-14 sm:w-14"
+      data-echo-track
+      data-src="{{ best_track.audio_url|default:'' }}"
+      data-id="{{ best_track.id }}"
+      data-title="{{ best_track.title|escape }}"
+      data-artist="{{ best_track.artist|default:'Echo 用户'|escape }}"
+      data-cover="{{ best_track.cover_theme|default:'summer' }}"
+      data-cover-url="{{ best_track.cover_url }}"
+      aria-label="播放 {{ best_track.title }}">
+      <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
+    </button>
+  </article>
+</section>
+{% endif %}
+
+<section data-play-queue="search-tracks" data-context-menu-kind="search">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">歌曲</h2>
+    <div class="flex shrink-0 items-center gap-3">
+      <span class="text-sm font-medium text-zinc-500">{{ total_tracks }} 条</span>
+      {% if total_tracks > 21 %}
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=tracks" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white">查看全部</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="rounded-lg bg-zinc-100 p-1 dark:bg-zinc-950/70">
+    {% for track in tracks %}
+      {% include "search/track_result_row.html" with track=track %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到歌曲" description="试试更短的关键词，或者换歌名、歌手名再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">专辑</h2>
+    <div class="flex shrink-0 items-center gap-3">
+      <span class="text-sm font-medium text-zinc-500">{{ total_albums }} 条</span>
+      {% if total_albums > 6 %}
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=albums" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white">查看全部</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+    {% for album in albums %}
+      {% include "components/album_card.html" with album=album %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到专辑" description="试试换专辑名称或创作者再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">用户</h2>
+    <div class="flex shrink-0 items-center gap-3">
+      <span class="text-sm font-medium text-zinc-500">{{ total_users }} 条</span>
+      {% if total_users > 6 %}
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=users" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white">查看全部</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="grid gap-3">
+    {% for user in users %}
+      <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800">
+        {% if user.profile.avatar_url %}
+          <img src="{{ user.profile.avatar_url }}" alt="{{ user.profile.name }} 的头像" class="h-12 w-12 shrink-0 rounded-full object-cover">
+        {% else %}
+          <span class="cover-eclipse grid h-12 w-12 shrink-0 place-items-center rounded-full font-black text-white">{{ user.profile.display_name|default:user.username|first|upper }}</span>
+        {% endif %}
+        <span class="min-w-0">
+          <span class="block truncate font-bold">{{ user.profile.display_name|default:user.username }}</span>
+          <span class="block truncate text-sm text-zinc-500">@{{ user.username }}</span>
+        </span>
+      </a>
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到用户" description="试试换用户名或显示名再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+{% if not best_track and not tracks and not albums and not users %}
+  {% include "components/empty_state.html" with icon="search" title="没有找到结果" description="试试更短的关键词，或者换其他关键词再搜一次。" %}
+{% endif %}

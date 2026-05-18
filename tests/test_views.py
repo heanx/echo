@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from albums.models import Playlist, PlaylistTrack
+from albums.models import Album, Playlist, PlaylistTrack
 from comments.models import TrackComment, TrackCommentReaction
 from core.models import Notification
 from lyrics.models import TrackLyrics
@@ -151,6 +151,29 @@ class CommentInteractionTests(TestCase):
         self.client.post(reverse("comments:toggle_like", kwargs={"comment_id": comment.pk}))
         self.assertEqual(Notification.objects.filter(recipient=owner, is_read=False).count(), 2)
 
+    def test_cannot_reply_to_hidden_parent_comment(self):
+        hidden_parent = TrackComment.objects.create(
+            track=self.track,
+            user=self.user,
+            body="Hidden",
+            status=TrackComment.STATUS_HIDDEN,
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("comments:create", kwargs={"track_id": self.track.pk}),
+            {"parent": hidden_parent.pk, "body": "Reply"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(TrackComment.objects.filter(parent=hidden_parent).exists())
+
+    def test_cannot_like_comment_when_track_is_hidden(self):
+        self.track.status = Track.STATUS_HIDDEN
+        self.track.save(update_fields=["status"])
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("comments:toggle_like", kwargs={"comment_id": self.comment.pk}))
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(TrackCommentReaction.objects.filter(comment=self.comment, user=self.user).exists())
+
 
 class NotificationViewTests(TestCase):
     def test_notification_count_and_mark_read(self):
@@ -290,6 +313,55 @@ class UploadSecurityValidationTests(TestCase):
         self.assertContains(response, "歌词文件")
 
 
+    def test_lyrics_upload_does_not_list_hidden_tracks(self):
+        Track.objects.create(title="Visible Track", artist="A", status=Track.STATUS_PUBLISHED)
+        Track.objects.create(title="Hidden Track", artist="A", status=Track.STATUS_HIDDEN)
+        response = self.client.get(reverse("lyrics:upload"))
+        self.assertContains(response, "Visible Track")
+        self.assertNotContains(response, "Hidden Track")
+
+    def test_lyrics_upload_rejects_other_users_hidden_track(self):
+        owner = User.objects.create_user(username="hidden-owner", password="pass")
+        hidden_track = Track.objects.create(title="Private Draft", owner=owner, status=Track.STATUS_HIDDEN)
+        response = self.client.post(
+            reverse("lyrics:upload"),
+            {
+                "track": hidden_track.pk,
+                "status": TrackLyrics.STATUS_AVAILABLE,
+                "raw_text": "private lyric",
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(TrackLyrics.objects.filter(track=hidden_track).exists())
+
+    def test_lyrics_upload_allows_owner_hidden_track(self):
+        hidden_track = Track.objects.create(title="Own Draft", owner=self.user, status=Track.STATUS_HIDDEN)
+        response = self.client.post(
+            reverse("lyrics:upload"),
+            {
+                "track": hidden_track.pk,
+                "status": TrackLyrics.STATUS_AVAILABLE,
+                "raw_text": "owner lyric",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(TrackLyrics.objects.filter(track=hidden_track, raw_text="owner lyric").exists())
+
+    def test_lyrics_upload_replaces_invalid_kind_with_default(self):
+        track = Track.objects.create(title="Kind Track", artist="A", status=Track.STATUS_PUBLISHED)
+        response = self.client.post(
+            reverse("lyrics:upload"),
+            {
+                "track": track.pk,
+                "status": TrackLyrics.STATUS_AVAILABLE,
+                "kind": "not-a-kind",
+                "raw_text": "kind lyric",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        lyrics = TrackLyrics.objects.get(track=track)
+        self.assertEqual(lyrics.kind, TrackLyrics.KIND_ORIGINAL)
+
     def test_uploaded_track_is_owned_by_current_user(self):
         audio_file = SimpleUploadedFile("ok.mp3", b"ID3" + b"\x00" * 32, content_type="audio/mpeg")
         response = self.client.post(
@@ -344,6 +416,14 @@ class AuthFlowTests(TestCase):
             {"username": user.username, "password": "a-strong-test-pass-123"},
         )
         self.assertRedirects(response, "/tracks/upload/")
+
+    def test_login_rejects_external_next_parameter(self):
+        user = User.objects.create_user(username="safe-listener", password="a-strong-test-pass-123")
+        response = self.client.post(
+            reverse("login") + "?next=https://evil.example/phish",
+            {"username": user.username, "password": "a-strong-test-pass-123"},
+        )
+        self.assertRedirects(response, reverse("home"))
 
     def test_login_without_remember_me_expires_at_browser_close(self):
         user = User.objects.create_user(username="session-listener", password="a-strong-test-pass-123")
@@ -577,17 +657,27 @@ class SearchPaginationTests(TestCase):
             )
 
     def test_search_results_are_paginated(self):
-        response = self.client.get(reverse("search"), {"q": "Searchable"})
+        response = self.client.get(reverse("search"), {"q": "Searchable", "type": "tracks"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["tracks"]), 20)
         self.assertEqual(response.context["pagination"]["total_items"], 25)
+        self.assertEqual(response.context["active_type"], "tracks")
         self.assertContains(response, 'data-play-queue="search-tracks"')
 
     def test_search_results_second_page_preserves_query(self):
-        response = self.client.get(reverse("search"), {"q": "Searchable", "page": 2})
+        response = self.client.get(reverse("search"), {"q": "Searchable", "type": "tracks", "page": 2})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["tracks"]), 5)
         self.assertContains(response, "q=Searchable")
+
+    def test_search_suggest_returns_tracks(self):
+        response = self.client.get(reverse("search_suggest"), {"q": "Searchable"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["query"], "Searchable")
+        self.assertTrue(payload["suggestions"])
+        self.assertTrue(payload["tracks"])
+        self.assertIn("audio_url", payload["tracks"][0])
 
 
 class PlaylistCrudTests(TestCase):
@@ -681,6 +771,74 @@ class MediaLifecycleTests(TestCase):
         track.delete()
         self.assertFalse(os.path.exists(audio_path))
         self.assertFalse(os.path.exists(cover_path))
+
+    def test_replacing_track_cover_removes_old_file(self):
+        first_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+        )
+        second_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8AABQMBgAFeK3sAAAAASUVORK5CYII="
+        )
+        track = Track.objects.create(
+            title="Replace Cover",
+            status=Track.STATUS_PUBLISHED,
+            cover_image=SimpleUploadedFile("cover-a.png", first_png, content_type="image/png"),
+        )
+        old_path = track.cover_image.path
+        self.assertTrue(os.path.exists(old_path))
+        track.cover_image = SimpleUploadedFile("cover-b.png", second_png, content_type="image/png")
+        track.save()
+        self.assertFalse(os.path.exists(old_path))
+        self.assertTrue(os.path.exists(track.cover_image.path))
+
+    def test_replacing_lyrics_source_file_removes_old_file(self):
+        track = Track.objects.create(title="Lyrics File", status=Track.STATUS_PUBLISHED)
+        lyrics = TrackLyrics.objects.create(
+            track=track,
+            source_file=SimpleUploadedFile("lyrics-a.txt", b"old", content_type="text/plain"),
+            raw_text="old",
+        )
+        old_path = lyrics.source_file.path
+        self.assertTrue(os.path.exists(old_path))
+        lyrics.source_file = SimpleUploadedFile("lyrics-b.txt", b"new", content_type="text/plain")
+        lyrics.save()
+        self.assertFalse(os.path.exists(old_path))
+        self.assertTrue(os.path.exists(lyrics.source_file.path))
+
+    def test_replacing_album_cover_removes_old_file(self):
+        first_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+        )
+        second_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8AABQMBgAFeK3sAAAAASUVORK5CYII="
+        )
+        album = Album.objects.create(
+            title="Replace Album",
+            cover_image=SimpleUploadedFile("album-a.png", first_png, content_type="image/png"),
+        )
+        old_path = album.cover_image.path
+        self.assertTrue(os.path.exists(old_path))
+        album.cover_image = SimpleUploadedFile("album-b.png", second_png, content_type="image/png")
+        album.save()
+        self.assertFalse(os.path.exists(old_path))
+        self.assertTrue(os.path.exists(album.cover_image.path))
+
+    def test_replacing_profile_avatar_removes_old_file(self):
+        first_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+        )
+        second_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8AABQMBgAFeK3sAAAAASUVORK5CYII="
+        )
+        user = User.objects.create_user(username="avatar-replace", password="pass")
+        user.profile.avatar = SimpleUploadedFile("avatar-a.png", first_png, content_type="image/png")
+        user.profile.save()
+        old_path = user.profile.avatar.path
+        self.assertTrue(os.path.exists(old_path))
+        user.profile.avatar = SimpleUploadedFile("avatar-b.png", second_png, content_type="image/png")
+        user.profile.save()
+        self.assertFalse(os.path.exists(old_path))
+        self.assertTrue(os.path.exists(user.profile.avatar.path))
 
     def test_cleanup_orphan_media_dry_run_and_delete(self):
         orphan_dir = os.path.join(self.media_root, "tracks", "audio")

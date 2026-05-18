@@ -1,0 +1,25 @@
+<section>
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">用户</h2>
+    <span class="shrink-0 text-sm font-medium text-zinc-500">{% if pagination.total_items %}第 {{ pagination.start_index }} - {{ pagination.end_index }} 项，共 {{ pagination.total_items }} 条{% endif %}</span>
+  </div>
+  <div class="grid gap-2">
+    {% for user in users %}
+      <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800">
+        {% if user.profile.avatar_url %}
+          <img src="{{ user.profile.avatar_url }}" alt="{{ user.profile.name }} 的头像" class="h-12 w-12 shrink-0 rounded-full object-cover">
+        {% else %}
+          <span class="cover-eclipse grid h-12 w-12 shrink-0 place-items-center rounded-full font-black text-white">{{ user.profile.display_name|default:user.username|first|upper }}</span>
+        {% endif %}
+        <span class="min-w-0">
+          <span class="block truncate font-bold">{{ user.profile.display_name|default:user.username }}</span>
+          <span class="block truncate text-sm text-zinc-500">@{{ user.username }}</span>
+        </span>
+      </a>
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到用户" description="试试换用户名或显示名再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+{% include "components/pagination.html" %}

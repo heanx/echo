@@ -1,0 +1,32 @@
+<article
+  class="group grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-zinc-200/70 dark:hover:bg-zinc-800/80 md:grid-cols-[56px_minmax(0,1fr)_96px_44px]"
+  data-echo-track
+  data-src="{{ track.audio_url|default:'' }}"
+  data-id="{{ track.id }}"
+  data-title="{{ track.title|escape }}"
+  data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
+  data-cover="{{ track.cover_theme|default:'summer' }}"
+  data-cover-url="{{ track.cover_url }}">
+  <button
+    type="button"
+    class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} grid h-14 w-14 place-items-center rounded bg-cover bg-center text-white"
+    {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}
+    aria-label="播放 {{ track.title }}">
+    <span class="grid h-9 w-9 place-items-center rounded-full bg-black/45 opacity-0 transition group-hover:opacity-100">
+      <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
+    </span>
+  </button>
+
+  <div class="min-w-0">
+    <a href="{% url 'tracks:detail' track.id %}" class="block truncate text-base font-bold transition hover:underline">{{ track.title }}</a>
+    <p class="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">歌曲 · {{ track.artist|default:"Echo 用户" }}</p>
+    {% if track.description %}
+      <p class="mt-1 hidden truncate text-sm text-zinc-500 dark:text-zinc-400 sm:block">{{ track.description }}</p>
+    {% endif %}
+  </div>
+
+  <span class="hidden justify-self-start rounded bg-zinc-200 px-2 py-1 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 md:inline-flex">歌曲</span>
+  <a href="{% url 'tracks:detail' track.id %}" class="grid h-10 w-10 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="查看详情">
+    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+  </a>
+</article>
