@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db import transaction
 from django.db.models import F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -7,7 +8,7 @@ from django.views.decorators.http import require_POST
 
 from lyrics.models import TrackLyrics
 
-from .models import Track
+from .models import Track, TrackLike, TrackPlay
 from .upload_validation import (
     ALLOWED_AUDIO_EXTENSIONS,
     ALLOWED_IMAGE_EXTENSIONS,
@@ -21,6 +22,15 @@ from .upload_validation import (
 
 DEFAULT_PER_PAGE = 20
 MAX_PER_PAGE = 100
+
+
+def liked_track_ids_for(user, tracks):
+    if not user.is_authenticated:
+        return set()
+    track_ids = [track.pk for track in tracks if getattr(track, "pk", None)]
+    if not track_ids:
+        return set()
+    return set(TrackLike.objects.filter(user=user, track_id__in=track_ids).values_list("track_id", flat=True))
 
 
 def _decode_id3_text(payload):
@@ -162,14 +172,16 @@ def _paginate_queryset(request, queryset, default_per_page=DEFAULT_PER_PAGE):
 def track_list(request):
     tracks = Track.objects.filter(status=Track.STATUS_PUBLISHED)
     page_obj, pagination, page_notice = _paginate_queryset(request, tracks)
+    track_items = list(page_obj.object_list)
     return render(
         request,
         "tracks/list.html",
         {
-            "tracks": page_obj.object_list,
+            "tracks": track_items,
             "page_obj": page_obj,
             "pagination": pagination,
             "page_notice": page_notice,
+            "liked_track_ids": liked_track_ids_for(request.user, track_items),
             "page_title": "全部音乐",
         },
     )
@@ -178,11 +190,13 @@ def track_list(request):
 def latest_tracks(request):
     tracks = Track.objects.filter(status=Track.STATUS_PUBLISHED).order_by("-created_at")
     page_obj, pagination, page_notice = _paginate_queryset(request, tracks)
+    track_items = list(page_obj.object_list)
     return render(
         request,
         "tracks/list.html",
         {
-            "tracks": page_obj.object_list,
+            "tracks": track_items,
+            "liked_track_ids": liked_track_ids_for(request.user, track_items),
             "page_obj": page_obj,
             "pagination": pagination,
             "page_notice": page_notice,
@@ -290,14 +304,96 @@ def upload_track(request):
 
 def track_detail(request, pk):
     track = get_object_or_404(Track, pk=pk, status=Track.STATUS_PUBLISHED)
-    return render(request, "tracks/detail.html", {"track": track})
+    return render(request, "tracks/detail.html", {"track": track, "liked_track_ids": liked_track_ids_for(request.user, [track])})
 
 
 @require_POST
 def record_play(request, pk):
+    track = Track.objects.filter(pk=pk, status=Track.STATUS_PUBLISHED).first()
+    if not track:
+        return JsonResponse({"ok": False, "error": "track_not_found"}, status=404)
+
     updated = Track.objects.filter(pk=pk, status=Track.STATUS_PUBLISHED).update(plays=F("plays") + 1)
     if not updated:
         return JsonResponse({"ok": False, "error": "track_not_found"}, status=404)
 
+    if request.user.is_authenticated:
+        play, created = TrackPlay.objects.get_or_create(
+            track=track,
+            user=request.user,
+            defaults={"session_key": f"user:{request.user.pk}"},
+        )
+    else:
+        if not request.session.session_key:
+            request.session.create()
+        play, created = TrackPlay.objects.get_or_create(
+            track=track,
+            user=None,
+            session_key=request.session.session_key,
+        )
+    if not created:
+        TrackPlay.objects.filter(pk=play.pk).update(play_count=F("play_count") + 1)
+        play.save(update_fields=["played_at"])
+
     plays = Track.objects.filter(pk=pk).values_list("plays", flat=True).first()
     return JsonResponse({"ok": True, "track_id": pk, "plays": plays or 0})
+
+
+@login_required
+@require_POST
+def toggle_track_like(request, pk):
+    track = get_object_or_404(Track, pk=pk, status=Track.STATUS_PUBLISHED)
+    with transaction.atomic():
+        like, created = TrackLike.objects.get_or_create(track=track, user=request.user)
+        if created:
+            Track.objects.filter(pk=track.pk).update(likes=F("likes") + 1)
+            liked = True
+        else:
+            like.delete()
+            Track.objects.filter(pk=track.pk, likes__gt=0).update(likes=F("likes") - 1)
+            liked = False
+    track.refresh_from_db(fields=["likes"])
+    liked_track_count = TrackLike.objects.filter(user=request.user, track__status=Track.STATUS_PUBLISHED).count()
+    return JsonResponse({
+        "ok": True,
+        "liked": liked,
+        "like_count": track.likes,
+        "liked_track_count": liked_track_count,
+        "liked_track_count_label": "999+" if liked_track_count > 999 else str(liked_track_count),
+        "track_id": track.pk,
+    })
+
+
+def track_like_status(request, pk):
+    track = get_object_or_404(Track, pk=pk, status=Track.STATUS_PUBLISHED)
+    liked = request.user.is_authenticated and TrackLike.objects.filter(track=track, user=request.user).exists()
+    return JsonResponse({
+        "ok": True,
+        "authenticated": request.user.is_authenticated,
+        "liked": liked,
+        "like_count": track.likes,
+        "track_id": track.pk,
+    })
+
+
+@login_required
+def liked_tracks(request):
+    likes = (
+        TrackLike.objects.filter(user=request.user, track__status=Track.STATUS_PUBLISHED)
+        .select_related("track", "track__owner", "track__owner__profile")
+        .order_by("-created_at")
+    )
+    tracks = [like.track for like in likes]
+    page_obj, pagination, page_notice = _paginate_queryset(request, tracks)
+    track_items = list(page_obj.object_list)
+    return render(
+        request,
+        "tracks/liked.html",
+        {
+            "tracks": track_items,
+            "page_obj": page_obj,
+            "pagination": pagination,
+            "page_notice": page_notice,
+            "liked_track_ids": {track.pk for track in track_items},
+        },
+    )

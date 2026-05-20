@@ -554,6 +554,11 @@
       display: block;
       min-width: 0;
       max-width: 100%;
+      text-decoration-color: transparent;
+      text-decoration-line: underline;
+      text-decoration-thickness: .06em;
+      text-underline-offset: .13em;
+      transition: text-decoration-color 160ms ease;
     }
     .lyrics-line .lyrics-line-time {
       transition: color 180ms ease, opacity 180ms ease;
@@ -583,6 +588,15 @@
     .lyrics-line.lyric-dist-far {
       color: rgba(255, 255, 255, .12);
       opacity: .12;
+    }
+    .lyrics-line:hover,
+    .lyrics-line:focus-visible {
+      color: rgba(255, 255, 255, .94);
+      opacity: .94;
+    }
+    .lyrics-line:hover span,
+    .lyrics-line:focus-visible span {
+      text-decoration-color: currentColor;
     }
     @media (max-width: 900px) {
       .lyrics-lines {
@@ -790,6 +804,11 @@
     .player-progress {
       width: min(100%, var(--player-progress-width));
       transition: width 180ms ease;
+    }
+    #player-progress {
+      cursor: pointer;
+      min-height: 24px;
+      touch-action: pan-y;
     }
     .playback-actions {
       gap: clamp(8px, 1vw, 16px);

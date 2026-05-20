@@ -46,8 +46,8 @@ class Track(models.Model):
     @property
     def audio_url(self):
         if self.audio_file:
-            return self.audio_file.url
-        return "/static/demo/demo-audio.wav"
+            return f"/stream/{self.audio_file.name}"
+        return "/stream/demo/demo-audio.wav"
 
     @property
     def cover_url(self):
@@ -71,6 +71,48 @@ class Track(models.Model):
                 return profile.display_name
             return self.owner.get_full_name() or self.owner.get_username()
         return self.artist or "Echo 用户"
+
+
+class TrackLike(models.Model):
+    track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name="user_likes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="liked_tracks")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["track", "user"], name="unique_track_like"),
+        ]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["track", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} likes {self.track}"
+
+
+class TrackPlay(models.Model):
+    track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name="play_events")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name="track_plays")
+    session_key = models.CharField(max_length=40, blank=True)
+    played_at = models.DateTimeField(auto_now=True)
+    play_count = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-played_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["track", "user"], name="unique_user_track_play"),
+            models.UniqueConstraint(fields=["track", "session_key"], name="unique_session_track_play"),
+        ]
+        indexes = [
+            models.Index(fields=["user", "-played_at"]),
+            models.Index(fields=["session_key", "-played_at"]),
+        ]
+
+    def __str__(self):
+        listener = self.user or self.session_key or "anonymous"
+        return f"{listener} played {self.track}"
 
 
 @receiver(post_delete, sender=Track)

@@ -14,7 +14,7 @@ from albums.models import Album, Playlist, PlaylistTrack
 from comments.models import TrackComment, TrackCommentReaction
 from core.models import Notification
 from lyrics.models import TrackLyrics
-from tracks.models import Track
+from tracks.models import Track, TrackLike, TrackPlay
 
 
 User = get_user_model()
@@ -74,6 +74,17 @@ class RecordPlayTests(TestCase):
         self.assertTrue(data["ok"])
         self.track.refresh_from_db()
         self.assertEqual(self.track.plays, 1)
+        self.assertTrue(TrackPlay.objects.filter(track=self.track, session_key=self.client.session.session_key).exists())
+
+    def test_post_play_records_user_recent_track(self):
+        user = User.objects.create_user(username="recent-listener", password="a-strong-test-pass-123")
+        self.client.force_login(user)
+        self.client.post(reverse("tracks:record_play", kwargs={"pk": self.track.pk}))
+        play = TrackPlay.objects.get(track=self.track, user=user)
+        self.assertEqual(play.play_count, 1)
+        self.client.post(reverse("tracks:record_play", kwargs={"pk": self.track.pk}))
+        play.refresh_from_db()
+        self.assertEqual(play.play_count, 2)
 
     def test_post_play_increments_twice(self):
         url = reverse("tracks:record_play", kwargs={"pk": self.track.pk})
@@ -86,6 +97,68 @@ class RecordPlayTests(TestCase):
         url = reverse("tracks:record_play", kwargs={"pk": 99999})
         response = self.client.post(url)
         self.assertEqual(response.status_code, 404)
+
+
+class TrackLikeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="track-liker", password="a-strong-test-pass-123")
+        self.track = Track.objects.create(title="Likeable", artist="Echo", status=Track.STATUS_PUBLISHED, likes=0)
+
+    def test_like_toggle_updates_relation_and_count(self):
+        self.client.force_login(self.user)
+        url = reverse("tracks:toggle_like", kwargs={"pk": self.track.pk})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["liked"])
+        self.assertEqual(response.json()["liked_track_count_label"], "1")
+        self.track.refresh_from_db()
+        self.assertEqual(self.track.likes, 1)
+        self.assertTrue(TrackLike.objects.filter(track=self.track, user=self.user).exists())
+
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["liked"])
+        self.assertEqual(response.json()["liked_track_count_label"], "0")
+        self.track.refresh_from_db()
+        self.assertEqual(self.track.likes, 0)
+        self.assertFalse(TrackLike.objects.filter(track=self.track, user=self.user).exists())
+
+    def test_like_requires_login(self):
+        response = self.client.post(reverse("tracks:toggle_like", kwargs={"pk": self.track.pk}))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response["Location"])
+
+    def test_cannot_like_hidden_track(self):
+        self.track.status = Track.STATUS_HIDDEN
+        self.track.save(update_fields=["status"])
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("tracks:toggle_like", kwargs={"pk": self.track.pk}))
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(TrackLike.objects.filter(track=self.track, user=self.user).exists())
+
+    def test_liked_tracks_page_lists_only_public_likes(self):
+        hidden = Track.objects.create(title="Hidden Like", artist="Echo", status=Track.STATUS_HIDDEN)
+        TrackLike.objects.create(track=self.track, user=self.user)
+        TrackLike.objects.create(track=hidden, user=self.user)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("tracks:liked"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Likeable")
+        self.assertNotContains(response, "Hidden Like")
+        self.assertContains(response, 'data-play-queue="liked-tracks"')
+
+    def test_like_status_reports_current_user_state(self):
+        response = self.client.get(reverse("tracks:like_status", kwargs={"pk": self.track.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["authenticated"])
+        self.assertFalse(response.json()["liked"])
+
+        TrackLike.objects.create(track=self.track, user=self.user)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("tracks:like_status", kwargs={"pk": self.track.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["authenticated"])
+        self.assertTrue(response.json()["liked"])
 
 
 class CommentsNoCacheTests(TestCase):

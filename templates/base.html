@@ -37,7 +37,7 @@
       },
     };
   </script>
-  <link rel="stylesheet" href="{% static 'css/echo-shell.css' %}">
+  <link rel="stylesheet" href="{% static 'css/echo-shell.css' %}?v=20260521-native-range">
 </head>
 <body class="h-screen overflow-hidden bg-zinc-100 text-zinc-900 antialiased dark:bg-black dark:text-white">
   <div id="echo-shell" class="grid h-screen grid-rows-[64px_1fr_96px] gap-2 bg-zinc-100 p-2 dark:bg-black">
@@ -264,11 +264,25 @@
                   <span class="sidebar-time text-xs text-zinc-500">{{ track.updated_at|date:"m-d" }}</span>
                 </button>
               {% empty %}
-                <a href="{% url 'tracks:upload' %}" class="sidebar-expanded block rounded-lg border border-dashed border-zinc-300 px-4 py-5 text-sm text-zinc-500 transition hover:border-brand hover:text-brand dark:border-zinc-700">
-                  上传第一首音乐后，这里会出现最近播放内容。
-                </a>
+                <div class="sidebar-expanded rounded-lg border border-dashed border-zinc-300 px-4 py-5 text-sm text-zinc-500 dark:border-zinc-700">
+                  播放过的歌曲会出现在这里。
+                </div>
               {% endfor %}
             </div>
+          </section>
+
+          <section class="sidebar-expanded">
+            <a href="{% url 'tracks:liked' %}"
+               class="group grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-900">
+              <span class="grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br from-brand via-violet-500 to-cyan-200 text-white shadow-sm">
+                <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+              </span>
+              <span class="min-w-0">
+                <span class="block truncate font-semibold">喜欢的音乐</span>
+                <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">歌单 · <span data-liked-playlist-count>{{ shell_liked_track_count_label|default:"0" }}</span> 首歌曲</span>
+              </span>
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-zinc-400 transition group-hover:text-brand" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
           </section>
         </div>
       </aside>
@@ -356,6 +370,19 @@
           <p id="player-artist" class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ first_track.artist|default:"Echo 用户" }}</p>
           <p id="player-status" class="hidden truncate text-[11px] font-semibold text-rose-500">音频暂时不可用</p>
         </div>
+        <button
+          id="player-like-button"
+          type="button"
+          class="has-tooltip grid h-9 w-9 shrink-0 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-brand disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-zinc-900"
+          data-track-like
+          data-track-id=""
+          data-url=""
+          aria-pressed="false"
+          aria-label="喜欢当前歌曲"
+          disabled>
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+          <span class="echo-tooltip bottom-tooltip" role="tooltip">喜欢</span>
+        </button>
         {% endwith %}
       </div>
       <div class="playback-controls flex min-w-0 flex-col items-center gap-3">
@@ -444,6 +471,10 @@
       "searchUrl": "{% url 'search' %}",
       "searchSuggestUrl": "{% url 'search_suggest' %}",
       "trackPlayUrlTemplate": "/tracks/__track_id__/play/",
+      "trackLikeUrlTemplate": "/tracks/__track_id__/like/",
+      "trackLikeStatusUrlTemplate": "/tracks/__track_id__/like/status/",
+      "loginUrl": "{% url 'login' %}",
+      "isAuthenticated": {% if request.user.is_authenticated %}true{% else %}false{% endif %},
       "csrfToken": "{{ csrf_token }}"
     }
   </script>
@@ -451,6 +482,6 @@
   <script>
     window.EchoConfig = JSON.parse(document.getElementById("echo-config").textContent);
   </script>
-  <script defer src="{% static 'js/echo-shell.js' %}?v=20260518-search-restore"></script>
+  <script defer src="{% static 'js/echo-shell.js' %}?v=20260521-native-range"></script>
 </body>
 </html>

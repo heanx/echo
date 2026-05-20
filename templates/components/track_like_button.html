@@ -1,0 +1,22 @@
+{% if request.user.is_authenticated %}
+  <button
+    type="button"
+    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-bold transition hover:bg-zinc-200 dark:hover:bg-zinc-800 {% if track.id in liked_track_ids %}text-brand{% else %}text-zinc-500{% endif %}"
+    data-track-like
+    data-track-id="{{ track.id }}"
+    data-track-title="{{ track.title|escape }}"
+    data-url="{% url 'tracks:toggle_like' track.id %}"
+    aria-pressed="{% if track.id in liked_track_ids %}true{% else %}false{% endif %}"
+    aria-label="{% if track.id in liked_track_ids %}取消喜欢 {{ track.title }}{% else %}喜欢 {{ track.title }}{% endif %}">
+    <svg viewBox="0 0 24 24" class="h-4 w-4" {% if track.id in liked_track_ids %}fill="currentColor"{% else %}fill="none"{% endif %} stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+    <span data-track-like-count="{{ track.id }}">{{ track.likes|default:0 }}</span>
+  </button>
+{% else %}
+  <a
+    href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}"
+    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-bold text-zinc-500 transition hover:bg-zinc-200 hover:text-brand dark:hover:bg-zinc-800"
+    aria-label="登录后喜欢 {{ track.title }}">
+    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+    <span data-track-like-count="{{ track.id }}">{{ track.likes|default:0 }}</span>
+  </a>
+{% endif %}

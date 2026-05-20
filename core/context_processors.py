@@ -20,19 +20,41 @@ def _get_avatar_url(user):
     return profile.avatar_url if profile else ""
 
 
+def _compact_count(value):
+    return "999+" if value > 999 else str(value)
+
+
 def user_status(request):
-    from tracks.models import Track
+    from tracks.models import Track, TrackLike, TrackPlay
 
     queue_tracks = list(Track.objects.filter(status=Track.STATUS_PUBLISHED).order_by("-updated_at")[:10])
+    recent_tracks = []
+    liked_track_count = 0
     unread_message_count = 0
     if request.user.is_authenticated:
         unread_message_count = request.user.notifications.filter(is_read=False).count()
+        recent_tracks = [
+            item.track
+            for item in TrackPlay.objects.filter(user=request.user, track__status=Track.STATUS_PUBLISHED)
+            .select_related("track")
+            .order_by("-played_at")[:5]
+        ]
+        liked_track_count = TrackLike.objects.filter(user=request.user, track__status=Track.STATUS_PUBLISHED).count()
+    elif request.session.session_key:
+        recent_tracks = [
+            item.track
+            for item in TrackPlay.objects.filter(session_key=request.session.session_key, track__status=Track.STATUS_PUBLISHED)
+            .select_related("track")
+            .order_by("-played_at")[:5]
+        ]
 
     return {
         "display_name": _get_display_name(request.user),
         "user_avatar_url": _get_avatar_url(request.user),
         "unread_message_count": unread_message_count,
         "friend_request_count": 0,
-        "shell_recent_tracks": queue_tracks[:3],
+        "shell_recent_tracks": recent_tracks,
+        "shell_liked_track_count": liked_track_count,
+        "shell_liked_track_count_label": _compact_count(liked_track_count),
         "shell_queue_tracks": queue_tracks,
     }

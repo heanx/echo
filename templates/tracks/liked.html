@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}我喜欢的歌曲 - Echo{% endblock %}
+
+{% block main %}
+<section class="space-y-5" data-play-queue="liked-tracks" data-play-queue-label="我喜欢的歌曲" data-context-menu-kind="track">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-sm font-bold uppercase tracking-[0.18em] text-brand">Liked Tracks</p>
+      <h1 class="mt-1 text-3xl font-black">我喜欢的歌曲</h1>
+      <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">把喜欢过的作品集中在这里，点击任意歌曲会形成独立播放队列。</p>
+    </div>
+    <a href="{% url 'tracks:list' %}" class="inline-flex items-center justify-center rounded-full bg-zinc-200 px-4 py-2 text-sm font-bold text-zinc-900 transition hover:bg-zinc-300 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800">
+      发现更多
+    </a>
+  </div>
+
+  {% if page_notice %}
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+      {{ page_notice }}
+    </div>
+  {% endif %}
+
+  <div class="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+    {% for track in tracks %}
+      {% include "components/track_row.html" with track=track liked_track_ids=liked_track_ids %}
+    {% empty %}
+      <div class="p-6">
+        {% include "components/empty_state.html" with icon="music" title="还没有喜欢的歌曲" description="遇到喜欢的作品时点一下爱心，它们就会出现在这里。" action_href="/tracks/" action_label="去发现音乐" %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% include "components/pagination.html" with pagination=pagination %}
+</section>
+{% endblock %}

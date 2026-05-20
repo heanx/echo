@@ -1,5 +1,5 @@
 <article
-  class="group grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-zinc-200/70 dark:hover:bg-zinc-800/80 md:grid-cols-[56px_minmax(0,1fr)_96px_44px]"
+  class="group grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-zinc-200/70 dark:hover:bg-zinc-800/80 md:grid-cols-[56px_minmax(0,1fr)_96px_90px_44px]"
   data-echo-track
   data-src="{{ track.audio_url|default:'' }}"
   data-id="{{ track.id }}"
@@ -26,6 +26,7 @@
   </div>
 
   <span class="hidden justify-self-start rounded bg-zinc-200 px-2 py-1 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 md:inline-flex">歌曲</span>
+  <span class="hidden md:block">{% include "components/track_like_button.html" with track=track liked_track_ids=liked_track_ids %}</span>
   <a href="{% url 'tracks:detail' track.id %}" class="grid h-10 w-10 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="查看详情">
     <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
   </a>

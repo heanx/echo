@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Track
+from .models import Track, TrackLike, TrackPlay
 
 
 @admin.register(Track)
@@ -12,3 +12,17 @@ class TrackAdmin(admin.ModelAdmin):
     @admin.display(boolean=True, description="自定义封面")
     def has_cover_image(self, obj):
         return bool(obj.cover_image)
+
+
+@admin.register(TrackLike)
+class TrackLikeAdmin(admin.ModelAdmin):
+    list_display = ("track", "user", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("track__title", "track__artist", "user__username", "user__profile__display_name")
+
+
+@admin.register(TrackPlay)
+class TrackPlayAdmin(admin.ModelAdmin):
+    list_display = ("track", "user", "session_key", "play_count", "played_at")
+    list_filter = ("played_at",)
+    search_fields = ("track__title", "track__artist", "user__username", "session_key")

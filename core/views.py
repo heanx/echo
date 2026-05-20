@@ -1,17 +1,21 @@
+import os
+import mimetypes
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseNotAllowed, JsonResponse
+from django.http import HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
+from django.views.static import serve
 
 from albums.models import Album
 from comments.models import TrackComment
 from comments.queries import get_comment_page_context
 from tracks.models import Track
-from tracks.views import _paginate_queryset
+from tracks.views import _paginate_queryset, liked_track_ids_for
 
 from .forms import AccountSecurityForm, EchoAuthenticationForm, EchoUserCreationForm, UserProfileForm
 from .models import Notification, UserProfile
@@ -28,12 +32,14 @@ def _home_context(request):
     recommended_tracks = list(published_tracks[:8])
     latest_tracks = list(published_tracks.order_by("-created_at")[:8])
     hot_albums = list(Album.objects.all()[:10])
+    visible_tracks = recommended_tracks + latest_tracks
 
     return {
         "hero_track": recommended_tracks[0] if recommended_tracks else None,
         "recommended_tracks": recommended_tracks,
         "latest_tracks": latest_tracks,
         "hot_albums": hot_albums,
+        "liked_track_ids": liked_track_ids_for(request.user, visible_tracks),
     }
 
 
@@ -192,10 +198,11 @@ def profile_view(request, username):
         defaults={"display_name": profile_user.get_username()},
     )
     uploaded_tracks = Track.objects.filter(owner=profile_user, status=Track.STATUS_PUBLISHED).order_by("-created_at")
+    uploaded_track_items = list(uploaded_tracks)
     recent_comments = TrackComment.objects.filter(user=profile_user, status=TrackComment.STATUS_PUBLISHED).select_related("track").order_by("-created_at")[:10]
     profile_stats = {
         "joined_at": profile_user.date_joined,
-        "uploaded_count": uploaded_tracks.count(),
+        "uploaded_count": len(uploaded_track_items),
         "comment_count": TrackComment.objects.filter(user=profile_user, status=TrackComment.STATUS_PUBLISHED).count(),
     }
     return render(
@@ -203,9 +210,10 @@ def profile_view(request, username):
         "profile/detail.html",
         {
             "profile_user": profile_user,
-            "uploaded_tracks": uploaded_tracks,
+            "uploaded_tracks": uploaded_track_items,
             "recent_comments": recent_comments,
             "profile_stats": profile_stats,
+            "liked_track_ids": liked_track_ids_for(request.user, uploaded_track_items),
         },
     )
 
@@ -360,18 +368,20 @@ def search_view(request):
 
     if search_type == "tracks":
         page_obj, pagination, page_notice = _paginate_queryset(request, tracks_qs, default_per_page=SEARCH_TRACKS_PER_PAGE)
+        track_items = list(page_obj.object_list)
         return render(
             request,
             "search/results.html",
             {
                 "query": query,
-                "tracks": page_obj.object_list,
+                "tracks": track_items,
                 "albums": Album.objects.none(),
                 "users": User.objects.none(),
                 "page_obj": page_obj,
                 "pagination": pagination,
                 "page_notice": page_notice,
                 "active_type": "tracks",
+                "liked_track_ids": liked_track_ids_for(request.user, track_items),
                 **totals,
             },
         )
@@ -413,6 +423,7 @@ def search_view(request):
         )
 
     summary_tracks = list(tracks_qs[:21])
+    visible_tracks = summary_tracks
     return render(
         request,
         "search/results.html",
@@ -423,9 +434,59 @@ def search_view(request):
             "albums": albums_qs[:6],
             "users": users_qs[:6],
             "active_type": "",
+            "liked_track_ids": liked_track_ids_for(request.user, visible_tracks),
             **totals,
         },
     )
+
+
+def serve_audio(request, path):
+    """Serve media/static files with HTTP Range support for audio seeking."""
+    from django.conf import settings
+
+    # Try static first, then media
+    full_path = None
+    for root in [settings.STATIC_ROOT, settings.MEDIA_ROOT] + list(settings.STATICFILES_DIRS):
+        candidate = os.path.join(root, path)
+        if os.path.isfile(candidate):
+            full_path = candidate
+            break
+
+    if full_path is None:
+        return HttpResponse(status=404)
+
+    content_type, _ = mimetypes.guess_type(full_path)
+    file_size = os.path.getsize(full_path)
+
+    range_header = request.headers.get("HTTP_RANGE") or request.headers.get("Range") or ""
+    range_match = None
+    if range_header:
+        import re
+        range_match = re.match(r"bytes=(\d+)-(\d*)", range_header)
+
+    if range_match:
+        start = int(range_match.group(1))
+        end_str = range_match.group(2)
+        end = int(end_str) - 1 if end_str else file_size - 1
+        end = min(end, file_size - 1)
+
+        if start > end or start >= file_size:
+            return HttpResponse(status=416)
+
+        length = end - start + 1
+        with open(full_path, "rb") as f:
+            f.seek(start)
+            data = f.read(length)
+
+        response = HttpResponse(data, content_type=content_type, status=206)
+        response["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+        response["Content-Length"] = str(length)
+    else:
+        response = HttpResponse(open(full_path, "rb").read(), content_type=content_type)
+        response["Content-Length"] = str(file_size)
+
+    response["Accept-Ranges"] = "bytes"
+    return response
 
 
 def error_404(request, exception):
