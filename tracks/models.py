@@ -84,8 +84,8 @@ class TrackLike(models.Model):
             models.UniqueConstraint(fields=["track", "user"], name="unique_track_like"),
         ]
         indexes = [
-            models.Index(fields=["user", "-created_at"]),
-            models.Index(fields=["track", "-created_at"]),
+            models.Index(fields=["user", "-created_at"], name="tracks_trac_user_id_b37341_idx"),
+            models.Index(fields=["track", "-created_at"], name="tracks_trac_track_i_a74af9_idx"),
         ]
 
     def __str__(self):
@@ -106,8 +106,8 @@ class TrackPlay(models.Model):
             models.UniqueConstraint(fields=["track", "session_key"], name="unique_session_track_play"),
         ]
         indexes = [
-            models.Index(fields=["user", "-played_at"]),
-            models.Index(fields=["session_key", "-played_at"]),
+            models.Index(fields=["user", "-played_at"], name="tracks_trac_user_id_6cfa28_idx"),
+            models.Index(fields=["session_key", "-played_at"], name="tracks_trac_session_8b56ea_idx"),
         ]
 
     def __str__(self):

@@ -6,19 +6,12 @@
 <section class="mx-auto max-w-xl">
   <div class="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-zinc-100 dark:bg-zinc-950 dark:ring-zinc-800">
     <h1 class="text-3xl font-black">{{ page_title }}</h1>
-    <form method="post" class="mt-8 space-y-5">
+    <form method="post" enctype="multipart/form-data" class="mt-8 space-y-5">
       {% csrf_token %}
       {% for field in form %}
         <div class="space-y-2">
           <label for="{{ field.id_for_label }}" class="block text-sm font-black">{{ field.label }}</label>
-          {% if field.field.widget.input_type == "checkbox" %}
-            <label class="flex items-center gap-3 text-sm text-zinc-600 dark:text-zinc-300">
-              {{ field }}
-              <span>允许其他用户在歌单列表中看到这个歌单</span>
-            </label>
-          {% else %}
-            {{ field }}
-          {% endif %}
+          {{ field }}
           {% if field.help_text %}
             <p class="text-xs text-zinc-500">{{ field.help_text }}</p>
           {% endif %}
@@ -29,7 +22,7 @@
       {% endfor %}
       <div class="flex flex-wrap gap-3 pt-2">
         <button type="submit" class="rounded-full bg-brand px-6 py-3 text-sm font-black text-white transition hover:bg-brand-dark">保存</button>
-        <a href="{% if playlist %}{% url 'albums:playlist_detail' playlist.pk %}{% else %}{% url 'albums:playlists' %}{% endif %}" class="rounded-full px-5 py-3 text-sm font-bold text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white">取消</a>
+        <a href="{% if playlist %}{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}{% else %}{% url 'user_playlists' request.user.username %}{% endif %}" class="rounded-full px-5 py-3 text-sm font-bold text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white" data-main-nav>取消</a>
       </div>
     </form>
   </div>

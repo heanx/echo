@@ -1,7 +1,7 @@
 <article class="group overflow-hidden rounded-lg bg-zinc-100 transition hover:bg-zinc-200/70 dark:bg-zinc-950 dark:hover:bg-zinc-900">
   <div class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} relative aspect-[4/3] bg-cover bg-center"
        {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}>
-    <a href="{% url 'tracks:detail' track.id %}" class="absolute inset-0" aria-label="查看 {{ track.title }}"></a>
+    <a href="{% url 'tracks:detail' track.id %}" class="absolute inset-0" aria-label="查看 {{ track.title }}" data-main-nav></a>
     <button
       type="button"
       class="absolute bottom-4 right-4 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-zinc-950 opacity-95 shadow-lg transition group-hover:scale-105"

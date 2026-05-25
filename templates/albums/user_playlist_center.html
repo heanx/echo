@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.profile.name }} 的歌单 - Echo{% endblock %}
+
+{% block main %}
+<section class="mx-auto max-w-6xl space-y-8">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-sm font-bold uppercase tracking-[0.18em] text-brand">Playlists</p>
+      <h1 class="mt-1 text-3xl font-black">{{ profile_user.profile.name }} 的歌单</h1>
+      <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+        {% if is_owner %}管理你的默认收藏、普通歌单和收藏的歌单。{% else %}这里只展示这个用户公开的歌单。{% endif %}
+      </p>
+    </div>
+    {% if is_owner %}
+      <a href="{% url 'user_playlist_create' request.user.username %}" class="inline-flex items-center justify-center rounded-full bg-brand px-5 py-2 text-sm font-bold text-white transition hover:bg-brand-dark" data-main-nav>创建歌单</a>
+    {% endif %}
+  </div>
+
+  <section>
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-xl font-black">{% if is_owner %}我的歌单{% else %}公开歌单{% endif %}</h2>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {% if is_owner and liked_playlist %}
+        <a href="{% url 'user_playlist_detail' liked_playlist.creator.username liked_playlist.pk %}" class="group rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-main-nav>
+          <span class="grid aspect-square w-full place-items-center rounded-lg bg-gradient-to-br from-brand via-violet-500 to-cyan-200 text-white shadow-sm">
+            <svg viewBox="0 0 24 24" class="h-12 w-12" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+          </span>
+          <span class="mt-3 flex items-center gap-2">
+            <span class="block min-w-0 truncate font-bold transition group-hover:text-brand">我喜欢的音乐</span>
+            <span class="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-bold text-brand">置顶</span>
+          </span>
+          <span class="block truncate text-sm text-zinc-500">{{ shell_liked_track_count_label|default:"0" }} 首 · 私密</span>
+        </a>
+      {% endif %}
+      {% for playlist in my_playlists %}
+        <a href="{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}" class="group rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-main-nav>
+          {% if playlist.cover_url %}
+            <img src="{{ playlist.cover_url }}" alt="{{ playlist.title }} 封面" class="aspect-square w-full rounded-lg object-cover">
+          {% else %}
+            <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-lg text-3xl font-black text-white">♫</span>
+          {% endif %}
+          <span class="mt-3 block truncate font-bold transition group-hover:text-brand">{{ playlist.title }}</span>
+          <span class="block truncate text-sm text-zinc-500">{{ playlist.track_count }} 首 · {% if playlist.visibility == "public" %}公开{% else %}私密{% endif %}</span>
+        </a>
+      {% empty %}
+        {% if not liked_playlist %}
+          {% include "components/empty_state.html" with icon="music" title="还没有歌单" description="创建一个歌单，把同一类情绪或场景里的作品收在一起。" action_href="/" action_label="回到首页" %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if is_owner %}
+    <section>
+      <h2 class="mb-3 text-xl font-black">收藏的歌单</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {% for playlist in favorite_playlists %}
+          <a href="{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}" class="group rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-900" data-main-nav>
+            {% if playlist.cover_url %}
+              <img src="{{ playlist.cover_url }}" alt="{{ playlist.title }} 封面" class="aspect-square w-full rounded-lg object-cover">
+            {% else %}
+              <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-lg text-3xl font-black text-white">♫</span>
+            {% endif %}
+            <span class="mt-3 block truncate font-bold transition group-hover:text-brand">{{ playlist.title }}</span>
+            <span class="block truncate text-sm text-zinc-500">{{ playlist.creator_name }} · {{ playlist.track_count }} 首</span>
+          </a>
+        {% empty %}
+          {% include "components/empty_state.html" with icon="music" title="还没有收藏歌单" description="收藏他人的公开歌单后会出现在这里。" action_href="/" action_label="回到首页" %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</section>
+{% endblock %}

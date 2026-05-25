@@ -8,11 +8,11 @@
     <div class="min-w-0">
       <h1 class="truncate text-3xl font-black">{% if query %}{{ query }}{% else %}搜索{% endif %}</h1>
       <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        {% if query %}找到 {{ total_tracks|add:total_albums|add:total_users }} 个相关结果{% else %}输入关键词搜索歌曲、专辑和用户{% endif %}
+        {% if query %}找到 {{ total_tracks|add:total_albums|add:total_playlists|add:total_users }} 个相关结果{% else %}输入关键词搜索歌曲、专辑、歌单和用户{% endif %}
       </p>
     </div>
     {% if query %}
-      <form class="flex h-12 w-full items-center gap-3 rounded-full border border-zinc-300 bg-zinc-100 px-4 focus-within:border-zinc-900 sm:max-w-md dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-white" action="{% url 'search' %}">
+      <form class="flex h-12 w-full items-center gap-3 rounded-full border border-zinc-300 bg-zinc-100 px-4 focus-within:border-zinc-900 sm:max-w-md dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-white" action="{% url 'search' %}" data-main-nav-form>
         <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input name="q" value="{{ query }}" class="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" autocomplete="off" aria-label="搜索关键词">
         <button type="submit" class="rounded-full bg-zinc-950 px-4 py-1.5 text-sm font-bold text-white transition hover:bg-brand dark:bg-white dark:text-zinc-950 dark:hover:bg-brand dark:hover:text-white">搜索</button>
@@ -34,6 +34,8 @@
     {% include "search/type_tracks.html" %}
   {% elif active_type == "albums" %}
     {% include "search/type_albums.html" %}
+  {% elif active_type == "playlists" %}
+    {% include "search/type_playlists.html" %}
   {% elif active_type == "users" %}
     {% include "search/type_users.html" %}
   {% else %}

@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from lyrics.models import TrackLyrics
+from albums.models import PlaylistTrack, ensure_liked_playlist
 
 from .models import Track, TrackLike, TrackPlay
 from .upload_validation import (
@@ -347,9 +348,26 @@ def toggle_track_like(request, pk):
         like, created = TrackLike.objects.get_or_create(track=track, user=request.user)
         if created:
             Track.objects.filter(pk=track.pk).update(likes=F("likes") + 1)
+            liked_playlist = ensure_liked_playlist(request.user)
+            if liked_playlist:
+                PlaylistTrack.objects.get_or_create(
+                    playlist=liked_playlist,
+                    track=track,
+                    defaults={
+                        "added_by": request.user,
+                        "position": liked_playlist.playlist_tracks.count(),
+                    },
+                )
+                liked_playlist.track_count = liked_playlist.playlist_tracks.count()
+                liked_playlist.save(update_fields=["track_count", "updated_at"])
             liked = True
         else:
             like.delete()
+            liked_playlist = ensure_liked_playlist(request.user)
+            if liked_playlist:
+                PlaylistTrack.objects.filter(playlist=liked_playlist, track=track).delete()
+                liked_playlist.track_count = liked_playlist.playlist_tracks.count()
+                liked_playlist.save(update_fields=["track_count", "updated_at"])
             Track.objects.filter(pk=track.pk, likes__gt=0).update(likes=F("likes") - 1)
             liked = False
     track.refresh_from_db(fields=["likes"])
@@ -378,22 +396,5 @@ def track_like_status(request, pk):
 
 @login_required
 def liked_tracks(request):
-    likes = (
-        TrackLike.objects.filter(user=request.user, track__status=Track.STATUS_PUBLISHED)
-        .select_related("track", "track__owner", "track__owner__profile")
-        .order_by("-created_at")
-    )
-    tracks = [like.track for like in likes]
-    page_obj, pagination, page_notice = _paginate_queryset(request, tracks)
-    track_items = list(page_obj.object_list)
-    return render(
-        request,
-        "tracks/liked.html",
-        {
-            "tracks": track_items,
-            "page_obj": page_obj,
-            "pagination": pagination,
-            "page_notice": page_notice,
-            "liked_track_ids": {track.pk for track in track_items},
-        },
-    )
+    liked_playlist = ensure_liked_playlist(request.user)
+    return redirect("user_playlist_detail", username=request.user.username, pk=liked_playlist.pk)

@@ -7,12 +7,13 @@
   <article class="grid grid-cols-[76px_minmax(0,1fr)_56px] items-center gap-4 rounded-lg bg-zinc-200/70 p-3 dark:bg-zinc-800/80 sm:grid-cols-[96px_minmax(0,1fr)_64px]">
     <a
       href="{% url 'tracks:detail' best_track.id %}"
+      data-main-nav
       class="{% if not best_track.cover_url %}cover-{{ best_track.cover_theme|default:'summer' }}{% endif %} grid h-20 w-20 place-items-center rounded bg-cover bg-center text-white sm:h-24 sm:w-24"
       {% if best_track.cover_url %}style="background-image: url('{{ best_track.cover_url }}');"{% endif %}
       aria-label="查看 {{ best_track.title }}">
     </a>
     <div class="min-w-0">
-      <a href="{% url 'tracks:detail' best_track.id %}" class="block truncate text-2xl font-black transition hover:underline sm:text-3xl">{{ best_track.title }}</a>
+      <a href="{% url 'tracks:detail' best_track.id %}" class="block truncate text-2xl font-black transition hover:underline sm:text-3xl" data-main-nav>{{ best_track.title }}</a>
       <p class="mt-1 truncate text-sm font-semibold text-zinc-500 dark:text-zinc-400">歌曲 · {{ best_track.artist|default:"Echo 用户" }}</p>
     </div>
     <button
@@ -38,7 +39,7 @@
     <div class="flex shrink-0 items-center gap-3">
       <span class="text-sm font-medium text-zinc-500">{{ total_tracks }} 条</span>
       {% if total_tracks > 21 %}
-        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=tracks" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white">查看全部</a>
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=tracks" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white" data-main-nav>查看全部</a>
       {% endif %}
     </div>
   </div>
@@ -57,7 +58,7 @@
     <div class="flex shrink-0 items-center gap-3">
       <span class="text-sm font-medium text-zinc-500">{{ total_albums }} 条</span>
       {% if total_albums > 6 %}
-        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=albums" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white">查看全部</a>
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=albums" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white" data-main-nav>查看全部</a>
       {% endif %}
     </div>
   </div>
@@ -72,17 +73,36 @@
 
 <section>
   <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">歌单</h2>
+    <div class="flex shrink-0 items-center gap-3">
+      <span class="text-sm font-medium text-zinc-500">{{ total_playlists }} 条</span>
+      {% if total_playlists > 6 %}
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=playlists" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white" data-main-nav>查看全部</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+    {% for playlist in playlists %}
+      {% include "search/playlist_result_card.html" with playlist=playlist %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到歌单" description="试试换歌单名称、创建者或简介再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <div class="mb-3 flex items-center justify-between gap-3">
     <h2 class="text-xl font-black">用户</h2>
     <div class="flex shrink-0 items-center gap-3">
       <span class="text-sm font-medium text-zinc-500">{{ total_users }} 条</span>
       {% if total_users > 6 %}
-        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=users" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white">查看全部</a>
+        <a href="{% url 'search' %}?q={{ query|urlencode }}&type=users" class="text-sm font-bold text-zinc-950 hover:underline dark:text-white" data-main-nav>查看全部</a>
       {% endif %}
     </div>
   </div>
   <div class="grid gap-3">
     {% for user in users %}
-      <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800">
+      <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800" data-main-nav>
         {% if user.profile.avatar_url %}
           <img src="{{ user.profile.avatar_url }}" alt="{{ user.profile.name }} 的头像" class="h-12 w-12 shrink-0 rounded-full object-cover">
         {% else %}
@@ -99,6 +119,6 @@
   </div>
 </section>
 
-{% if not best_track and not tracks and not albums and not users %}
+{% if not best_track and not tracks and not albums and not playlists and not users %}
   {% include "components/empty_state.html" with icon="search" title="没有找到结果" description="试试更短的关键词，或者换其他关键词再搜一次。" %}
 {% endif %}

@@ -1,5 +1,5 @@
 (function () {
-  const allowedExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
+  const defaultAllowedExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
   const outputSize = 512;
   const initialZoom = 1.2;
   let activeDragState = null;
@@ -70,6 +70,22 @@
     state.image.style.height = height + "px";
     state.image.style.transform = "translate(" + state.offsetX + "px, " + state.offsetY + "px)";
   }
+  function prepareImageLayer(state) {
+    state.image.classList.remove("hidden");
+    state.image.style.display = "block";
+  }
+  function resetImagePosition(state) {
+    if (!state.image.naturalWidth || !state.image.naturalHeight) return;
+    const frameSize = state.frame.clientWidth || 160;
+    state.baseScale = Math.max(frameSize / state.image.naturalWidth, frameSize / state.image.naturalHeight);
+    const width = state.image.naturalWidth * state.baseScale;
+    const height = state.image.naturalHeight * state.baseScale;
+    state.zoom = initialZoom;
+    state.offsetX = (frameSize - width * state.zoom) / 2;
+    state.offsetY = (frameSize - height * state.zoom) / 2;
+    state.zoomInput.value = String(initialZoom);
+    render(state);
+  }
 
   function moveDrag(state, clientX, clientY) {
     state.offsetX += clientX - state.dragX;
@@ -118,6 +134,7 @@
     state.file = null;
     state.cropper.classList.add("hidden");
     state.cropper.classList.remove("is-preset-preview");
+    state.image.classList.add("hidden");
     state.image.removeAttribute("src");
     state.image.removeAttribute("style");
     state.zoomInput.disabled = false;
@@ -145,13 +162,8 @@
     setInputClearVisible(state, false);
     setError(state.cropper, "");
     state.image.onload = function () {
-      const frameSize = state.frame.clientWidth || 160;
-      state.baseScale = Math.max(frameSize / state.image.naturalWidth, frameSize / state.image.naturalHeight);
-      const width = state.image.naturalWidth * state.baseScale;
-      const height = state.image.naturalHeight * state.baseScale;
-      state.offsetX = (frameSize - width) / 2;
-      state.offsetY = (frameSize - height) / 2;
-      render(state);
+      prepareImageLayer(state);
+      resetImagePosition(state);
     };
     state.image.src = src;
     if (state.input.form) delete state.input.form.dataset.avatarSubmitting;
@@ -169,10 +181,10 @@
       clearCropper(state);
       return;
     }
-    if (!file.type.startsWith("image/") || !allowedExtensions.has(extensionOf(file))) {
+    if (!file.type.startsWith("image/") || !state.allowedExtensions.has(extensionOf(file))) {
       clearCropper(state);
       state.cropper.classList.remove("hidden");
-      setError(state.cropper, "只能上传 JPG、PNG 或 WEBP 图片。");
+      setError(state.cropper, "只能上传 " + Array.from(state.allowedExtensions).map(function (ext) { return ext.toUpperCase(); }).join("、") + " 图片。");
       return;
     }
 
@@ -190,13 +202,8 @@
     setInputClearVisible(state, true);
     if (state.input.form) delete state.input.form.dataset.avatarSubmitting;
     state.image.onload = function () {
-      const frameSize = state.frame.clientWidth || 160;
-      state.baseScale = Math.max(frameSize / state.image.naturalWidth, frameSize / state.image.naturalHeight);
-      const width = state.image.naturalWidth * state.baseScale;
-      const height = state.image.naturalHeight * state.baseScale;
-      state.offsetX = (frameSize - width) / 2;
-      state.offsetY = (frameSize - height) / 2;
-      render(state);
+      prepareImageLayer(state);
+      resetImagePosition(state);
     };
     state.image.src = state.url;
   }
@@ -223,7 +230,7 @@
           resolve(false);
           return;
         }
-        const cropped = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+        const cropped = new File([blob], state.outputName || "avatar.jpg", { type: "image/jpeg" });
         const transfer = new DataTransfer();
         transfer.items.add(cropped);
         state.input.files = transfer.files;
@@ -235,17 +242,23 @@
   function setupCropper(cropper) {
     const input = document.getElementById(cropper.dataset.inputId || "");
     if (!input) return null;
+    const externalFrame = cropper.dataset.externalFrameId ? document.getElementById(cropper.dataset.externalFrameId) : null;
+    const allowed = cropper.dataset.allowedExtensions
+      ? new Set(cropper.dataset.allowedExtensions.split(",").map(function (item) { return item.trim().toLowerCase(); }).filter(Boolean))
+      : defaultAllowedExtensions;
     const state = {
       cropper,
       input,
-      frame: cropper.querySelector("[data-avatar-frame]"),
-      image: cropper.querySelector("[data-avatar-image]"),
+      frame: externalFrame || cropper.querySelector("[data-avatar-frame]"),
+      image: (externalFrame || cropper).querySelector("[data-avatar-image]"),
       zoomInput: cropper.querySelector("[data-avatar-zoom]"),
       filename: cropper.querySelector("[data-avatar-filename]"),
       clearButton: cropper.querySelector("[data-avatar-clear]"),
       keepCurrentButton: cropper.querySelector("[data-avatar-keep-current]"),
       cropCurrentButton: cropper.querySelector("[data-avatar-crop-current]"),
       inputClearButton: findInputClearButton(input),
+      allowedExtensions: allowed,
+      outputName: cropper.dataset.outputName || "avatar.jpg",
       file: null,
       url: "",
       baseScale: 1,
@@ -256,6 +269,7 @@
       dragX: 0,
       dragY: 0,
     };
+    if (!state.frame || !state.image || !state.zoomInput || !state.clearButton) return null;
 
     input.addEventListener("change", function () {
       if (input.files && input.files[0]) setPreset(presetGroupForInput(input), "");
@@ -300,6 +314,11 @@
     if (!state.file && cropper.dataset.initialAvatarUrl && !cropper.classList.contains("is-preset-preview")) {
       showStaticPreview(state, cropper.dataset.initialAvatarUrl, "当前头像");
     }
+    cropper.addEventListener("avatar-cropper:reset", function () {
+      resetImagePosition(state);
+      setError(state.cropper, "");
+      if (state.input.form) delete state.input.form.dataset.avatarSubmitting;
+    });
     state.zoomInput.addEventListener("input", function () {
       const frameSize = state.frame.clientWidth || 160;
       setZoom(state, Number(state.zoomInput.value) || 1, frameSize / 2, frameSize / 2);
@@ -312,7 +331,7 @@
       setZoom(state, nextZoom, frameSize / 2, frameSize / 2);
     });
     state.frame.addEventListener("wheel", function (event) {
-      if (!state.file) return;
+      if (!state.file || state.cropper.dataset.cropLocked === "true") return;
       event.preventDefault();
       const rect = state.frame.getBoundingClientRect();
       const originX = event.clientX - rect.left;
@@ -321,7 +340,7 @@
       setZoom(state, nextZoom, originX, originY);
     });
     state.frame.addEventListener("pointerdown", function (event) {
-      if (!state.file) return;
+      if (!state.file || state.cropper.dataset.cropLocked === "true") return;
       event.preventDefault();
       event.stopPropagation();
       state.dragging = true;

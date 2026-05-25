@@ -1,18 +1,27 @@
 {% if query %}
 <nav class="search-type-tabs flex flex-wrap gap-2 pb-1" aria-label="搜索结果类型">
   <a href="{% url 'search' %}?q={{ query|urlencode }}"
+     data-main-nav
      class="rounded-full px-4 py-2 text-sm font-bold transition {% if not active_type %}bg-zinc-950 text-white dark:bg-white dark:text-zinc-950{% else %}bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700{% endif %}">
-    全部<span class="ml-1 text-xs opacity-70">({{ total_tracks|add:total_albums|add:total_users }})</span>
+    全部<span class="ml-1 text-xs opacity-70">({{ total_tracks|add:total_albums|add:total_playlists|add:total_users }})</span>
   </a>
   <a href="{% url 'search' %}?q={{ query|urlencode }}&type=tracks"
+     data-main-nav
      class="rounded-full px-4 py-2 text-sm font-bold transition {% if active_type == 'tracks' %}bg-zinc-950 text-white dark:bg-white dark:text-zinc-950{% else %}bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700{% endif %}">
     歌曲<span class="ml-1 text-xs opacity-70">({{ total_tracks }})</span>
   </a>
   <a href="{% url 'search' %}?q={{ query|urlencode }}&type=albums"
+     data-main-nav
      class="rounded-full px-4 py-2 text-sm font-bold transition {% if active_type == 'albums' %}bg-zinc-950 text-white dark:bg-white dark:text-zinc-950{% else %}bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700{% endif %}">
     专辑<span class="ml-1 text-xs opacity-70">({{ total_albums }})</span>
   </a>
+  <a href="{% url 'search' %}?q={{ query|urlencode }}&type=playlists"
+     data-main-nav
+     class="rounded-full px-4 py-2 text-sm font-bold transition {% if active_type == 'playlists' %}bg-zinc-950 text-white dark:bg-white dark:text-zinc-950{% else %}bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700{% endif %}">
+    歌单<span class="ml-1 text-xs opacity-70">({{ total_playlists }})</span>
+  </a>
   <a href="{% url 'search' %}?q={{ query|urlencode }}&type=users"
+     data-main-nav
      class="rounded-full px-4 py-2 text-sm font-bold transition {% if active_type == 'users' %}bg-zinc-950 text-white dark:bg-white dark:text-zinc-950{% else %}bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700{% endif %}">
     用户<span class="ml-1 text-xs opacity-70">({{ total_users }})</span>
   </a>

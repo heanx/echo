@@ -11,7 +11,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.static import serve
 
-from albums.models import Album
+from albums.models import Album, Playlist
 from comments.models import TrackComment
 from comments.queries import get_comment_page_context
 from tracks.models import Track
@@ -22,7 +22,7 @@ from .models import Notification, UserProfile
 
 
 User = get_user_model()
-SEARCH_TYPE_CHOICES = {"tracks", "albums", "users"}
+SEARCH_TYPE_CHOICES = {"tracks", "albums", "playlists", "users"}
 SEARCH_TRACKS_PER_PAGE = 20
 SEARCH_CARDS_PER_PAGE = 12
 
@@ -200,10 +200,22 @@ def profile_view(request, username):
     uploaded_tracks = Track.objects.filter(owner=profile_user, status=Track.STATUS_PUBLISHED).order_by("-created_at")
     uploaded_track_items = list(uploaded_tracks)
     recent_comments = TrackComment.objects.filter(user=profile_user, status=TrackComment.STATUS_PUBLISHED).select_related("track").order_by("-created_at")[:10]
+    public_playlists = Playlist.objects.filter(
+        creator=profile_user,
+        visibility=Playlist.VISIBILITY_PUBLIC,
+        playlist_type=Playlist.TYPE_NORMAL,
+        is_deleted=False,
+    ).select_related("creator")[:6]
     profile_stats = {
         "joined_at": profile_user.date_joined,
         "uploaded_count": len(uploaded_track_items),
         "comment_count": TrackComment.objects.filter(user=profile_user, status=TrackComment.STATUS_PUBLISHED).count(),
+        "playlist_count": Playlist.objects.filter(
+            creator=profile_user,
+            visibility=Playlist.VISIBILITY_PUBLIC,
+            playlist_type=Playlist.TYPE_NORMAL,
+            is_deleted=False,
+        ).count(),
     }
     return render(
         request,
@@ -212,6 +224,7 @@ def profile_view(request, username):
             "profile_user": profile_user,
             "uploaded_tracks": uploaded_track_items,
             "recent_comments": recent_comments,
+            "public_playlists": public_playlists,
             "profile_stats": profile_stats,
             "liked_track_ids": liked_track_ids_for(request.user, uploaded_track_items),
         },
@@ -290,10 +303,38 @@ def _search_users(query):
     )
 
 
-def _search_totals(tracks_qs, albums_qs, users_qs):
+def _search_playlists(query):
+    return (
+        Playlist.objects.filter(
+            visibility=Playlist.VISIBILITY_PUBLIC,
+            playlist_type=Playlist.TYPE_NORMAL,
+            is_deleted=False,
+        )
+        .filter(
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(creator__username__icontains=query)
+            | Q(creator__profile__display_name__icontains=query)
+        )
+        .annotate(
+            relevance=(
+                Case(When(title__icontains=query, then=Value(80)), default=Value(0), output_field=IntegerField())
+                + Case(When(creator__username__icontains=query, then=Value(45)), default=Value(0), output_field=IntegerField())
+                + Case(When(creator__profile__display_name__icontains=query, then=Value(35)), default=Value(0), output_field=IntegerField())
+                + Case(When(description__icontains=query, then=Value(10)), default=Value(0), output_field=IntegerField())
+            )
+        )
+        .select_related("creator", "creator__profile")
+        .distinct()
+        .order_by("-relevance", "-updated_at")
+    )
+
+
+def _search_totals(tracks_qs, albums_qs, playlists_qs, users_qs):
     return {
         "total_tracks": tracks_qs.count(),
         "total_albums": albums_qs.count(),
+        "total_playlists": playlists_qs.count(),
         "total_users": users_qs.count(),
     }
 
@@ -310,17 +351,38 @@ def _track_payload(track):
     }
 
 
+def _playlist_payload(playlist):
+    return {
+        "id": playlist.id,
+        "title": playlist.title,
+        "creator": playlist.creator_name,
+        "track_count": playlist.track_count,
+        "cover_theme": playlist.cover_theme or "eclipse",
+        "cover_url": playlist.cover_url,
+        "url": f"/users/{playlist.creator.username}/playlist/{playlist.id}/",
+    }
+
+
 def search_suggest_view(request):
     query = request.GET.get("q", "").strip()[:200]
     if not query:
         return JsonResponse({"query": "", "suggestions": [], "tracks": []})
 
     tracks = list(_search_tracks(query)[:5])
+    playlists = list(_search_playlists(query)[:4])
     suggestion_values = []
     seen = set()
     values = list(Track.objects.filter(status=Track.STATUS_PUBLISHED, title__icontains=query).values_list("title", flat=True)[:4])
     values += list(Track.objects.filter(status=Track.STATUS_PUBLISHED, artist__icontains=query).values_list("artist", flat=True)[:4])
     values += list(Album.objects.filter(title__icontains=query).values_list("title", flat=True)[:3])
+    values += list(
+        Playlist.objects.filter(
+            visibility=Playlist.VISIBILITY_PUBLIC,
+            playlist_type=Playlist.TYPE_NORMAL,
+            is_deleted=False,
+            title__icontains=query,
+        ).values_list("title", flat=True)[:3]
+    )
     for value in values:
         normalized = (value or "").strip()
         key = normalized.lower()
@@ -335,6 +397,7 @@ def search_suggest_view(request):
             "query": query,
             "suggestions": suggestion_values,
             "tracks": [_track_payload(track) for track in tracks],
+            "playlists": [_playlist_payload(playlist) for playlist in playlists],
         }
     )
 
@@ -353,18 +416,21 @@ def search_view(request):
                 "query": query,
                 "tracks": Track.objects.none(),
                 "albums": Album.objects.none(),
+                "playlists": Playlist.objects.none(),
                 "users": User.objects.none(),
                 "active_type": "",
                 "total_tracks": 0,
                 "total_albums": 0,
+                "total_playlists": 0,
                 "total_users": 0,
             },
         )
 
     tracks_qs = _search_tracks(query)
     albums_qs = _search_albums(query)
+    playlists_qs = _search_playlists(query)
     users_qs = _search_users(query)
-    totals = _search_totals(tracks_qs, albums_qs, users_qs)
+    totals = _search_totals(tracks_qs, albums_qs, playlists_qs, users_qs)
 
     if search_type == "tracks":
         page_obj, pagination, page_notice = _paginate_queryset(request, tracks_qs, default_per_page=SEARCH_TRACKS_PER_PAGE)
@@ -376,6 +442,7 @@ def search_view(request):
                 "query": query,
                 "tracks": track_items,
                 "albums": Album.objects.none(),
+                "playlists": Playlist.objects.none(),
                 "users": User.objects.none(),
                 "page_obj": page_obj,
                 "pagination": pagination,
@@ -395,11 +462,31 @@ def search_view(request):
                 "query": query,
                 "tracks": Track.objects.none(),
                 "albums": page_obj.object_list,
+                "playlists": Playlist.objects.none(),
                 "users": User.objects.none(),
                 "page_obj": page_obj,
                 "pagination": pagination,
                 "page_notice": page_notice,
                 "active_type": "albums",
+                **totals,
+            },
+        )
+
+    if search_type == "playlists":
+        page_obj, pagination, page_notice = _paginate_queryset(request, playlists_qs, default_per_page=SEARCH_CARDS_PER_PAGE)
+        return render(
+            request,
+            "search/results.html",
+            {
+                "query": query,
+                "tracks": Track.objects.none(),
+                "albums": Album.objects.none(),
+                "playlists": page_obj.object_list,
+                "users": User.objects.none(),
+                "page_obj": page_obj,
+                "pagination": pagination,
+                "page_notice": page_notice,
+                "active_type": "playlists",
                 **totals,
             },
         )
@@ -413,6 +500,7 @@ def search_view(request):
                 "query": query,
                 "tracks": Track.objects.none(),
                 "albums": Album.objects.none(),
+                "playlists": Playlist.objects.none(),
                 "users": page_obj.object_list,
                 "page_obj": page_obj,
                 "pagination": pagination,
@@ -432,6 +520,7 @@ def search_view(request):
             "best_track": summary_tracks[0] if summary_tracks else None,
             "tracks": summary_tracks[1:21],
             "albums": albums_qs[:6],
+            "playlists": playlists_qs[:6],
             "users": users_qs[:6],
             "active_type": "",
             "liked_track_ids": liked_track_ids_for(request.user, visible_tracks),

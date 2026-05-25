@@ -9,7 +9,7 @@
       <h1 class="text-3xl font-black">{{ page_title }}</h1>
       <p class="mt-1 text-sm text-zinc-500">浏览 Echo 社区中的音频作品。支持 `?page=` 和 `?per=` 参数分页。</p>
     </div>
-    <a href="{% url 'tracks:upload' %}" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">上传音乐</a>
+    <a href="{% url 'tracks:upload' %}" class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500" hx-get="{% url 'tracks:upload' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">上传音乐</a>
   </div>
 
   {% if page_notice %}
@@ -23,7 +23,7 @@
       {% include "components/track_row.html" with track=track %}
     {% empty %}
       <div class="p-4">
-        {% include "components/empty_state.html" with icon="music" title="还没有音乐" description="先上传一首作品，或者运行 `python manage.py seed_demo` 生成演示数据。" action_href="/tracks/upload/" action_label="上传音乐" %}
+        {% include "components/empty_state.html" with icon="music" title="还没有音乐" description="先上传一首作品，或者运行 `python manage.py seed_demo` 生成演示数据。" action_href="/tracks/upload/" action_hx_get="/tracks/upload/" action_label="上传音乐" %}
       </div>
     {% endfor %}
   </div>

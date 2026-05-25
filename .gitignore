@@ -16,3 +16,6 @@ ref/
 
 # IDE
 .idea/
+
+# Local assistant/editor state
+.claude/

@@ -18,7 +18,7 @@
   </button>
 
   <div class="min-w-0">
-    <a href="{% url 'tracks:detail' track.id %}" class="block truncate text-base font-bold transition hover:underline">{{ track.title }}</a>
+    <a href="{% url 'tracks:detail' track.id %}" class="block truncate text-base font-bold transition hover:underline" data-main-nav>{{ track.title }}</a>
     <p class="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">歌曲 · {{ track.artist|default:"Echo 用户" }}</p>
     {% if track.description %}
       <p class="mt-1 hidden truncate text-sm text-zinc-500 dark:text-zinc-400 sm:block">{{ track.description }}</p>
@@ -27,7 +27,7 @@
 
   <span class="hidden justify-self-start rounded bg-zinc-200 px-2 py-1 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 md:inline-flex">歌曲</span>
   <span class="hidden md:block">{% include "components/track_like_button.html" with track=track liked_track_ids=liked_track_ids %}</span>
-  <a href="{% url 'tracks:detail' track.id %}" class="grid h-10 w-10 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="查看详情">
+  <a href="{% url 'tracks:detail' track.id %}" class="grid h-10 w-10 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="查看详情" data-main-nav>
     <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
   </a>
 </article>

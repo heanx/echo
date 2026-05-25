@@ -1,0 +1,9 @@
+<a href="{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}" class="group rounded-lg bg-zinc-100 p-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800" data-main-nav>
+  {% if playlist.cover_url %}
+    <span class="block aspect-square w-full rounded-lg bg-cover bg-center" style="background-image: url('{{ playlist.cover_url }}');"></span>
+  {% else %}
+    <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square w-full place-items-center rounded-lg text-3xl font-black text-white">♫</span>
+  {% endif %}
+  <span class="mt-3 block truncate font-bold transition group-hover:text-brand">{{ playlist.title }}</span>
+  <span class="block truncate text-sm text-zinc-500">{{ playlist.creator_name }} · {{ playlist.track_count }} 首</span>
+</a>

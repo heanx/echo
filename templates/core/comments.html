@@ -9,11 +9,12 @@
       <p class="text-sm font-semibold uppercase tracking-wide text-brand">Community</p>
       <h1 class="mt-2 text-3xl font-black">评论</h1>
       <p class="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
-        {{ track.title|default:"等待播放" }} · {{ track.artist|default:"Echo 用户" }}
+        {{ track.title|default:"等待播放" }} · {{ track.artist|default:"Echo 用户" }} · {{ comment_count }} 条讨论
       </p>
     </div>
     <div class="flex rounded-full bg-zinc-100 p-1 text-sm font-bold dark:bg-zinc-950">
       <a href="{% url 'comments' %}?track={{ track.id }}&sort=hot"
+         data-main-nav
          hx-get="{% url 'comments' %}?track={{ track.id }}&sort=hot"
          hx-select="#main-content"
          hx-target="#main-content"
@@ -21,6 +22,7 @@
          hx-push-url="true"
          class="rounded-full px-4 py-2 {% if sort == 'hot' and filter != 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">热门</a>
       <a href="{% url 'comments' %}?track={{ track.id }}&sort=new"
+         data-main-nav
          hx-get="{% url 'comments' %}?track={{ track.id }}&sort=new"
          hx-select="#main-content"
          hx-target="#main-content"
@@ -28,6 +30,7 @@
          hx-push-url="true"
          class="rounded-full px-4 py-2 {% if sort == 'new' and filter != 'questions' %}bg-brand text-white{% else %}text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white{% endif %}">最新</a>
       <a href="{% url 'comments' %}?track={{ track.id }}&filter=questions"
+         data-main-nav
          hx-get="{% url 'comments' %}?track={{ track.id }}&filter=questions"
          hx-select="#main-content"
          hx-target="#main-content"
@@ -61,15 +64,19 @@
   {% endif %}
 
   <div id="comments-list" class="mt-6 space-y-3">
+    {% if page_notice %}
+      <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">{{ page_notice }}</div>
+    {% endif %}
     {% for comment in comments %}
       {% include "comments/comment_item.html" with track=track comment=comment liked_comment_ids=liked_comment_ids %}
     {% empty %}
       {% if track %}
         {% include "components/empty_state.html" with icon="comments" title="还没有评论" description="第一条评论会出现在这里。你可以先写下感受、问题或者时间戳讨论。" %}
       {% else %}
-        {% include "components/empty_state.html" with icon="comments" title="还没有可评论的作品" description="当前没有已发布音频，所以评论区还没法打开。上传作品后，这里会自动切到当前播放内容。" action_href="/tracks/upload/" action_label="上传音乐" %}
+        {% include "components/empty_state.html" with icon="comments" title="还没有可评论的作品" description="当前没有已发布音频，所以评论区还没法打开。上传作品后，这里会自动切到当前播放内容。" action_href="/tracks/upload/" action_hx_get="/tracks/upload/" action_label="上传音乐" %}
       {% endif %}
     {% endfor %}
   </div>
+  {% include "components/pagination.html" with pagination=pagination %}
 </section>
 {% endblock %}

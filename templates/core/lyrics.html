@@ -44,6 +44,7 @@
       <p class="mt-1 truncate text-white/75">{{ track.artist|default:"Echo 用户" }}</p>
     </div>
     <a href="{% url 'home' %}"
+       data-main-nav
        class="rounded-full bg-white/14 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/22"
        hx-get="{% url 'home' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
       返回首页
@@ -73,7 +74,7 @@
     </div>
   {% else %}
     <div class="lyrics-panel-content mt-8 max-w-2xl rounded-2xl bg-white/10 p-4 text-zinc-950">
-      {% include "components/empty_state.html" with icon="lyrics" title="还没有可展示的歌词" description="当前没有已发布作品，或者这些作品还没关联歌词。上传作品后，这里会自动跟随播放器切换。" action_href="/tracks/upload/" action_label="上传音乐" %}
+      {% include "components/empty_state.html" with icon="lyrics" title="还没有可展示的歌词" description="当前没有已发布作品，或者这些作品还没关联歌词。上传作品后，这里会自动跟随播放器切换。" action_href="/tracks/upload/" action_hx_get="/tracks/upload/" action_label="上传音乐" %}
     </div>
   {% endif %}
 </section>

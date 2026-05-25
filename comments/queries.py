@@ -1,8 +1,12 @@
 from django.db.models import Prefetch
 
 from tracks.models import Track
+from tracks.views import _paginate_queryset
 
 from .models import TrackComment, TrackCommentReaction
+
+
+COMMENTS_PER_PAGE = 10
 
 
 def resolve_comment_track(request):
@@ -56,7 +60,10 @@ def get_comment_page_context(request):
     track = resolve_comment_track(request)
     sort = request.GET.get("sort", "hot")
     comment_filter = request.GET.get("filter", "")
-    comments = list(build_comment_queryset(track, sort=sort, comment_filter=comment_filter))
+    queryset = build_comment_queryset(track, sort=sort, comment_filter=comment_filter)
+    total_comments = queryset.count()
+    page_obj, pagination, page_notice = _paginate_queryset(request, queryset, default_per_page=COMMENTS_PER_PAGE)
+    comments = list(page_obj.object_list)
     liked_comment_ids = set()
     if request.user.is_authenticated and comments:
         liked_comment_ids = set(
@@ -70,8 +77,11 @@ def get_comment_page_context(request):
     return {
         "track": track,
         "comments": comments,
+        "page_obj": page_obj,
+        "pagination": pagination,
+        "page_notice": page_notice,
         "sort": sort,
         "filter": comment_filter,
-        "comment_count": len(comments),
+        "comment_count": total_comments,
         "liked_comment_ids": liked_comment_ids,
     }

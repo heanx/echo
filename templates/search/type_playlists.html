@@ -1,0 +1,15 @@
+<section>
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-xl font-black">歌单</h2>
+    <span class="shrink-0 text-sm font-medium text-zinc-500">{% if pagination.total_items %}第 {{ pagination.start_index }} - {{ pagination.end_index }} 项，共 {{ pagination.total_items }} 条{% endif %}</span>
+  </div>
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+    {% for playlist in playlists %}
+      {% include "search/playlist_result_card.html" with playlist=playlist %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="search" title="没有找到歌单" description="试试换歌单名称、创建者或简介再搜一次。" %}
+    {% endfor %}
+  </div>
+</section>
+
+{% include "components/pagination.html" %}

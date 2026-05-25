@@ -5,7 +5,7 @@
   </div>
   <div class="grid gap-2">
     {% for user in users %}
-      <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800">
+      <a href="{% url 'profile' user.username %}" class="flex items-center gap-3 rounded-lg bg-zinc-100 px-4 py-3 transition hover:bg-zinc-200 dark:bg-zinc-950/70 dark:hover:bg-zinc-800" data-main-nav>
         {% if user.profile.avatar_url %}
           <img src="{{ user.profile.avatar_url }}" alt="{{ user.profile.name }} 的头像" class="h-12 w-12 shrink-0 rounded-full object-cover">
         {% else %}

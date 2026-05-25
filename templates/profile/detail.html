@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <dl class="grid gap-3 text-sm text-zinc-500 sm:grid-cols-3">
+    <dl class="grid gap-3 text-sm text-zinc-500 sm:grid-cols-4">
       <div class="rounded-lg bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
         <dt class="font-bold text-zinc-900 dark:text-white">加入时间</dt>
         <dd class="mt-1">{{ profile_stats.joined_at|date:"Y-m-d" }}</dd>
@@ -52,8 +52,37 @@
         <dt class="font-bold text-zinc-900 dark:text-white">公开评论</dt>
         <dd class="mt-1">{{ profile_stats.comment_count }} 条</dd>
       </div>
+      <div class="rounded-lg bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
+        <dt class="font-bold text-zinc-900 dark:text-white">公开歌单</dt>
+        <dd class="mt-1">{{ profile_stats.playlist_count }} 个</dd>
+      </div>
     </dl>
   </div>
+
+  <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-100 dark:bg-zinc-950 dark:ring-zinc-800">
+    <div class="mb-5">
+      <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand">Playlists</p>
+      <h2 class="mt-1 text-xl font-black">公开歌单</h2>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {% for playlist in public_playlists %}
+        <a href="{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}" class="group rounded-lg bg-zinc-50 p-3 transition hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800" data-main-nav>
+          {% if playlist.cover_url %}
+            <img src="{{ playlist.cover_url }}" alt="{{ playlist.title }} 封面" class="aspect-square w-full rounded-lg object-cover">
+          {% else %}
+            <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-lg text-3xl font-black text-white">♫</span>
+          {% endif %}
+          <span class="mt-3 block truncate font-bold transition group-hover:text-brand">{{ playlist.title }}</span>
+          <span class="block text-sm text-zinc-500">{{ playlist.playlist_tracks.count }} 首</span>
+        </a>
+      {% empty %}
+        {% include "components/empty_state.html" with icon="music" title="还没有公开歌单" description="这个用户暂时没有公开歌单。" %}
+      {% endfor %}
+    </div>
+    <div class="mt-4">
+      <a href="{% url 'user_playlists' profile_user.username %}" class="text-sm font-bold text-brand" data-main-nav>查看歌单中心</a>
+    </div>
+  </section>
 
   <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-100 dark:bg-zinc-950 dark:ring-zinc-800" data-play-queue="profile-tracks">
     <div class="mb-5">
@@ -76,10 +105,10 @@
     </div>
     <div class="space-y-3">
       {% for comment in recent_comments %}
-        <article class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <a href="{% url 'comments' %}?track={{ comment.track_id }}#comment-{{ comment.id }}" class="block rounded-lg border border-zinc-200 bg-zinc-50 p-4 transition hover:border-brand/50 dark:border-zinc-800 dark:bg-zinc-900" data-main-nav>
           <p class="text-sm font-bold text-zinc-500">{{ comment.track.title }}</p>
           <p class="mt-2 text-sm leading-6">{{ comment.body }}</p>
-        </article>
+        </a>
       {% empty %}
         {% include "components/empty_state.html" with icon="comments" title="还没有评论记录" description="这个用户暂时还没有留下公开评论。" %}
       {% endfor %}

@@ -15,14 +15,14 @@
   </button>
 
   <div class="min-w-0">
-    <a href="{% url 'tracks:detail' track.id %}" class="block truncate font-bold transition hover:text-brand">{{ track.title }}</a>
+    <a href="{% url 'tracks:detail' track.id %}" class="block truncate font-bold transition hover:text-brand" data-main-nav>{{ track.title }}</a>
     <p class="truncate text-sm text-zinc-500">by {{ track.artist|default:"Echo 用户" }} · {{ track.created_at|date:"m-d H:i" }}</p>
   </div>
 
   <span class="waveform hidden h-8 opacity-70 md:block"></span>
   <span class="text-sm text-zinc-500"><span data-track-plays="{{ track.id }}">{{ track.plays|default:0 }}</span> 播放</span>
   <span class="hidden md:block">{% include "components/track_like_button.html" with track=track liked_track_ids=liked_track_ids %}</span>
-  <a href="{% url 'tracks:detail' track.id %}" class="text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white" aria-label="查看详情">
+  <a href="{% url 'tracks:detail' track.id %}" class="text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white" aria-label="查看详情" data-main-nav>
     <span aria-hidden="true">...</span>
   </a>
 </article>

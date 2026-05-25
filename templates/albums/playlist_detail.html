@@ -3,59 +3,194 @@
 {% block title %}{{ playlist.title }} - Echo{% endblock %}
 
 {% block main %}
-<section class="space-y-6">
-  <div class="grid gap-6 rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-950 md:grid-cols-[180px_minmax(0,1fr)]">
-    <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-2xl text-5xl font-black text-white">♫</span>
-    <div class="min-w-0">
-      <p class="text-sm font-bold uppercase tracking-[0.18em] text-brand">Playlist</p>
-      <h1 class="mt-2 truncate text-4xl font-black">{{ playlist.title }}</h1>
-      <p class="mt-2 text-sm text-zinc-500">{{ playlist.creator }} · {{ playlist.playlist_tracks.count }} 首</p>
-      <p class="mt-4 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ playlist.description|default:"这个歌单还没有简介。" }}</p>
-      {% if request.user == playlist.owner %}
-        <div class="mt-5 flex flex-wrap gap-2">
-          <a href="{% url 'albums:playlist_edit' playlist.pk %}" class="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold transition hover:border-brand hover:text-brand dark:border-zinc-700">编辑歌单</a>
-          <form method="post" action="{% url 'albums:playlist_delete' playlist.pk %}" onsubmit="return confirm('确定删除这个歌单吗？');">
-            {% csrf_token %}
-            <button type="submit" class="rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 dark:border-red-900/70 dark:hover:bg-red-950/40">删除歌单</button>
-          </form>
-        </div>
-      {% endif %}
+<section class="playlist-detail-page space-y-7">
+  <div class="grid gap-7 rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-950 md:grid-cols-[220px_minmax(0,1fr)]">
+    {% if playlist.cover_url %}
+      <img src="{{ playlist.cover_url }}" alt="{{ playlist.title }} 封面" class="aspect-square w-full rounded-2xl object-cover">
+    {% else %}
+      <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid aspect-square place-items-center rounded-2xl text-5xl font-black text-white">♫</span>
+    {% endif %}
+    <div class="flex min-w-0 flex-col justify-between">
+      <div>
+        <p class="text-sm font-bold uppercase tracking-[0.18em] text-brand">Playlist</p>
+        <h1 class="mt-2 truncate text-4xl font-black">{{ playlist.title }}</h1>
+        <p class="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+          <span>{{ playlist.creator_name }}</span>
+          <span>{{ playlist.created_at|date:"Y-m-d" }}创建</span>
+          <span>{{ playlist.track_count }} 首</span>
+          <span>{% if playlist.visibility == "public" %}公开{% else %}私密{% endif %}</span>
+        </p>
+        <p class="mt-4 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ playlist.description|default:"这个歌单还没有简介。" }}</p>
+      </div>
+      <div class="mt-8 flex flex-wrap items-center gap-4">
+        <button type="button" class="rounded-lg bg-rose-500 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-600" data-playlist-play-all>
+          <span aria-hidden="true">▶</span> 播放全部
+        </button>
+        <button
+          type="button"
+          class="playlist-header-more"
+          data-copy-url="{{ request.build_absolute_uri }}"
+          title="更多"
+          aria-label="更多">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 
-  {% if add_form %}
-    <form method="post" action="{% url 'albums:playlist_add_track' playlist.pk %}" class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:grid-cols-[minmax(0,1fr)_120px_auto]">
-      {% csrf_token %}
-      {{ add_form.track }}
-      {{ add_form.position }}
-      <button type="submit" class="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white transition hover:bg-brand-dark">添加歌曲</button>
-    </form>
-  {% endif %}
-
-  <section data-play-queue="playlist-{{ playlist.pk }}" data-play-queue-label="歌单：{{ playlist.title }}">
-    <h2 class="mb-4 text-xl font-black">歌曲</h2>
-    <div class="overflow-hidden rounded-lg bg-zinc-50 dark:bg-zinc-950">
-      {% for item in playlist.playlist_tracks.all %}
-        <div class="border-b border-zinc-200 last:border-b-0 dark:border-zinc-800">
-          {% include "components/track_row.html" with track=item.track %}
-          {% if request.user == playlist.owner %}
-            <div class="flex flex-wrap items-center justify-end gap-2 px-4 pb-3 text-sm">
-              <form method="post" action="{% url 'albums:playlist_reorder_track' playlist.pk item.pk %}" class="flex items-center gap-2">
-                {% csrf_token %}
-                <label class="text-zinc-500" for="position-{{ item.pk }}">排序</label>
-                <input id="position-{{ item.pk }}" name="position" value="{{ item.position }}" class="w-20 rounded-lg border border-zinc-300 bg-white px-3 py-1 text-sm dark:border-zinc-700 dark:bg-[#121212]">
-                <button type="submit" class="font-bold text-brand">保存</button>
-              </form>
-              <form method="post" action="{% url 'albums:playlist_remove_track' playlist.pk item.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="font-bold text-red-600">移除</button>
-              </form>
-            </div>
-          {% endif %}
+  <section data-play-queue="playlist-{{ playlist.pk }}" data-play-queue-label="歌单：{{ playlist.title }}" data-context-menu-kind="playlist-detail">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800">
+      <div class="playlist-tabs flex items-end gap-8 text-lg font-black" role="tablist" aria-label="歌单内容">
+        <button type="button" class="playlist-tab is-active" data-playlist-tab="tracks" role="tab" aria-selected="true">歌曲 <sup>{{ playlist.track_count }}</sup></button>
+        <button type="button" class="playlist-tab" data-playlist-tab="comments" role="tab" aria-selected="false">评论 <sup>{{ playlist_comments|length }}</sup></button>
+        <button type="button" class="playlist-tab" data-playlist-tab="favorites" role="tab" aria-selected="false">收藏者 <sup>{{ playlist.favorite_count }}</sup></button>
+      </div>
+      <div class="rounded-full bg-zinc-100 px-4 py-2 text-sm text-zinc-500 dark:bg-zinc-900">搜索</div>
+      {% if request.user == playlist.creator and not playlist.is_liked_playlist and playlist_items %}
+        <div class="hidden flex-wrap items-center gap-2 text-sm">
+          <select name="action" form="playlist-bulk-form" class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-[#121212]">
+            <option value="remove">移除选中</option>
+            <option value="move_top">移到顶部</option>
+            <option value="move_bottom">移到底部</option>
+          </select>
+          <button type="submit" form="playlist-bulk-form" class="rounded-full border border-zinc-300 px-4 py-2 font-bold transition hover:border-brand hover:text-brand dark:border-zinc-700">批量应用</button>
         </div>
-      {% empty %}
-        {% include "components/empty_state.html" with icon="music" title="歌单里还没有歌曲" description="从上方选择一首已发布作品加入歌单。" %}
-      {% endfor %}
+      {% endif %}
+    </div>
+    {% if request.user == playlist.creator and not playlist.is_liked_playlist %}
+      <form id="playlist-bulk-form" method="post" action="{% url 'user_playlist_bulk_manage' playlist.creator.username playlist.pk %}">
+        {% csrf_token %}
+      </form>
+    {% endif %}
+
+    <div class="playlist-tab-panel is-active" data-playlist-panel="tracks">
+      <div class="playlist-song-list playlist-infinite-list overflow-visible" data-infinite-list data-infinite-step="14">
+        <div class="playlist-song-head grid grid-cols-[56px_minmax(220px,1.45fr)_minmax(150px,0.9fr)_86px_72px] items-center gap-4 border-b border-zinc-200 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-800">
+          <span>#</span>
+          <span>标题</span>
+          <span class="hidden md:block">专辑</span>
+          <span class="hidden text-center md:block">喜欢</span>
+          <span class="hidden md:block">时长</span>
+        </div>
+        {% for item in playlist_items %}
+          <article
+            class="playlist-song-row grid grid-cols-[56px_minmax(220px,1.45fr)_minmax(150px,0.9fr)_86px_72px] items-center gap-4 rounded-xl px-4 py-3 transition"
+            data-track-row
+            data-playlist-row
+            data-infinite-item
+            data-row-position="{{ item.position }}"
+            {% if request.user == playlist.creator and not playlist.is_liked_playlist %}data-playlist-sortable="true"{% endif %}>
+            <div class="playlist-row-index relative flex h-12 items-center">
+              <span class="playlist-row-number text-sm font-bold text-zinc-400">{{ forloop.counter|stringformat:"02d" }}</span>
+              <button
+                type="button"
+                class="playlist-row-play absolute left-0 hidden h-9 w-9 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-brand dark:hover:bg-zinc-800"
+                data-echo-track
+                data-src="{{ item.track.audio_url|default:'' }}"
+                data-id="{{ item.track.id }}"
+                data-title="{{ item.track.title|escape }}"
+                data-artist="{{ item.track.artist|default:'Echo 用户'|escape }}"
+                data-cover="{{ item.track.cover_theme|default:'summer' }}"
+                data-cover-url="{{ item.track.cover_url }}"
+                aria-label="播放 {{ item.track.title }}">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>
+              </button>
+            </div>
+            <div class="playlist-title-cell flex min-w-0 items-center gap-3">
+              {% if item.track.cover_url %}
+                <span class="h-14 w-14 shrink-0 rounded-lg bg-cover bg-center" style="background-image: url('{{ item.track.cover_url }}');"></span>
+              {% else %}
+                <span class="cover-{{ item.track.cover_theme|default:'summer' }} grid h-14 w-14 shrink-0 place-items-center rounded-lg text-base font-black text-white">♫</span>
+              {% endif %}
+              <span class="playlist-title-meta min-w-0 flex-1">
+                <a href="{% url 'tracks:detail' item.track.id %}" class="block truncate text-lg font-semibold transition hover:text-brand" data-main-nav>{{ item.track.title }}</a>
+                <span class="mt-1 block truncate text-sm text-zinc-500">{{ item.track.artist|default:"Echo 用户" }}</span>
+              </span>
+              <span class="playlist-row-actions pointer-events-none flex shrink-0 items-center gap-2 opacity-0 transition">
+                <button type="button" class="playlist-row-action" data-playlist-next title="下一首播放" aria-label="下一首播放">
+                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="m17 10-5-5-5 5"/></svg>
+                </button>
+                <button type="button" class="playlist-row-action" data-playlist-like title="收藏" aria-label="收藏">
+                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                </button>
+                <a class="playlist-row-action" href="{% url 'comments' %}?track={{ item.track.id }}" title="查看评论" aria-label="查看评论" data-main-nav>
+                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>
+                </a>
+                <button type="button" class="playlist-row-action" data-playlist-more title="更多" aria-label="更多">
+                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+                </button>
+              </span>
+            </div>
+            <span class="hidden min-w-0 truncate text-zinc-600 dark:text-zinc-300 md:block">{{ item.track.description|default:item.track.title }}</span>
+            <span class="hidden justify-center md:flex">{% include "components/track_like_button.html" with track=item.track liked_track_ids=liked_track_ids %}</span>
+            <span class="hidden text-sm text-zinc-500 md:block">{% if item.track.duration_ms %}--:--{% else %}--:--{% endif %}</span>
+            {% if request.user == playlist.creator and not playlist.is_liked_playlist %}
+              <form method="post" action="{% url 'user_playlist_reorder_track' playlist.creator.username playlist.pk item.pk %}" class="hidden" data-playlist-reorder-form>
+                {% csrf_token %}
+                <input type="hidden" name="position" value="{{ item.position }}" data-playlist-position-input>
+              </form>
+              <form method="post" action="{% url 'user_playlist_remove_track' playlist.creator.username playlist.pk item.pk %}" class="hidden" data-playlist-remove-form>
+                {% csrf_token %}
+              </form>
+            {% endif %}
+          </article>
+        {% empty %}
+          {% include "components/empty_state.html" with icon="music" title="歌单里还没有歌曲" description="可以从歌曲右键菜单里收藏到这个歌单。" %}
+        {% endfor %}
+        <button type="button" class="playlist-load-more" data-infinite-more>加载更多</button>
+      </div>
+    </div>
+
+    <div class="playlist-tab-panel" data-playlist-panel="comments">
+      {% if request.user.is_authenticated and playlist_items %}
+        <form method="post"
+              action="{% url 'comments:create' playlist_items.0.track.id %}"
+              hx-post="{% url 'comments:create' playlist_items.0.track.id %}"
+              hx-target="#playlist-comments-list"
+              hx-swap="afterbegin"
+              class="playlist-comment-compose">
+          {% csrf_token %}
+          <textarea name="body" rows="3" maxlength="140" placeholder="说点什么吧"></textarea>
+          <div class="flex items-center justify-between text-sm text-zinc-400">
+            <span>140</span>
+            <span class="flex items-center gap-4">
+              <span>#</span><span>@</span><span>☺</span>
+              <button type="submit" class="font-bold text-zinc-600 transition hover:text-brand dark:text-zinc-300">发布</button>
+            </span>
+          </div>
+        </form>
+      {% endif %}
+      <div id="playlist-comments-list" class="playlist-comments-flow playlist-infinite-list" data-infinite-list data-infinite-step="6">
+        {% for comment in playlist_comments %}
+          <div data-infinite-item>
+            {% include "comments/comment_item.html" with track=comment.track comment=comment liked_comment_ids=liked_comment_ids %}
+          </div>
+        {% empty %}
+          {% include "components/empty_state.html" with icon="comments" title="还没有评论" description="这个歌单里的歌曲还没有讨论。" %}
+        {% endfor %}
+        <button type="button" class="playlist-load-more" data-infinite-more>加载更多评论</button>
+      </div>
+    </div>
+
+    <div class="playlist-tab-panel" data-playlist-panel="favorites">
+      <div class="playlist-favorites-flow playlist-infinite-list" data-infinite-list data-infinite-step="12">
+        {% for favorite in playlist_favorites %}
+          <a href="{% url 'profile' favorite.user.username %}" class="playlist-favorite-user" data-infinite-item data-main-nav>
+            {% if favorite.user.profile.avatar_url %}
+              <span class="h-12 w-12 rounded-full bg-cover bg-center" style="background-image: url('{{ favorite.user.profile.avatar_url }}');"></span>
+            {% else %}
+              <span class="cover-eclipse grid h-12 w-12 place-items-center rounded-full text-sm font-black text-white">{{ favorite.user.username|first|upper }}</span>
+            {% endif %}
+            <span class="min-w-0">
+              <span class="block truncate font-bold">{{ favorite.user.profile.name|default:favorite.user.username }}</span>
+              <span class="block truncate text-sm text-zinc-500">{{ favorite.created_at|date:"Y-m-d" }} 收藏</span>
+            </span>
+          </a>
+        {% empty %}
+          {% include "components/empty_state.html" with icon="music" title="还没有收藏者" description="公开歌单被收藏后会出现在这里。" %}
+        {% endfor %}
+        <button type="button" class="playlist-load-more" data-infinite-more>加载更多收藏者</button>
+      </div>
     </div>
   </section>
 </section>

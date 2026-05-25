@@ -56,9 +56,9 @@
           <span class="echo-tooltip top-tooltip" role="tooltip">首页</span>
         </a>
         <div class="top-search-box relative min-w-0 flex-1">
-          <form id="top-search-form" class="flex h-11 min-w-0 items-center gap-2 rounded-full bg-zinc-200/80 px-3 ring-0 transition focus-within:bg-white focus-within:ring-2 focus-within:ring-zinc-950 sm:h-12 sm:gap-3 sm:px-5 dark:bg-zinc-900 dark:focus-within:bg-zinc-800 dark:focus-within:ring-white" action="{% url 'search' %}" autocomplete="off">
+          <form id="top-search-form" class="flex h-11 min-w-0 items-center gap-2 rounded-full bg-zinc-200/80 px-3 ring-0 transition focus-within:bg-white focus-within:ring-2 focus-within:ring-zinc-950 sm:h-12 sm:gap-3 sm:px-5 dark:bg-zinc-900 dark:focus-within:bg-zinc-800 dark:focus-within:ring-white" action="{% url 'search' %}" autocomplete="off" data-main-nav-form>
             <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="top-search-input" name="q" value="{{ request.GET.q|default:'' }}" class="w-full min-w-0 bg-transparent text-sm font-semibold outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑或用户..." autocomplete="off" aria-autocomplete="list" aria-controls="top-search-suggestions" aria-expanded="false">
+            <input id="top-search-input" name="q" value="{{ request.GET.q|default:'' }}" class="w-full min-w-0 bg-transparent text-sm font-semibold outline-none placeholder:text-zinc-500" placeholder="搜索音乐、歌手、专辑、歌单或用户..." autocomplete="off" aria-autocomplete="list" aria-controls="top-search-suggestions" aria-expanded="false">
             <button id="top-search-clear" type="button" class="hidden h-8 w-8 shrink-0 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-300 hover:text-zinc-950 dark:hover:bg-zinc-700 dark:hover:text-white" aria-label="清除搜索词">
               <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
@@ -86,7 +86,7 @@
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span class="echo-tooltip top-tooltip" role="tooltip">好友</span>
         </button>
-        <a href="{% url 'tracks:upload' %}" data-top-action="upload" class="hidden shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 sm:inline-flex">上传</a>
+        <a href="{% url 'tracks:upload' %}" data-top-action="upload" class="hidden shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 sm:inline-flex" hx-get="{% url 'tracks:upload' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">上传</a>
         {% if request.user.is_authenticated %}
         <div class="account-menu">
           <button type="button"
@@ -163,8 +163,8 @@
     <div id="content-grid" class="grid min-h-0 grid-cols-[var(--left-width)_minmax(0,1fr)_var(--right-width)] gap-2 overflow-hidden rounded-2xl bg-transparent transition-all duration-300"
          style="--side-width: clamp(320px, 24vw, 400px); --left-width: var(--side-width); --right-width: var(--side-width);">
       <aside id="left-sidebar" class="hidden min-h-0 overflow-hidden rounded-lg bg-white/95 transition-all duration-300 dark:bg-[#121212] lg:flex lg:flex-col">
-        <div class="sidebar-body flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 py-6 echo-scrollbar">
-          <section>
+        <div class="sidebar-body flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6 echo-scrollbar">
+          <section class="sidebar-library-head shrink-0">
             <div class="library-row mb-4 flex items-center">
               <button data-toggle-sidebar type="button" class="library-collapse-button has-tooltip absolute left-0 top-0 grid h-9 w-9 place-items-center rounded-lg text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" aria-label="收起音乐库">
                 <svg viewBox="0 0 24 24" class="h-5 w-5 transition-transform" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14"/><path d="m15 8-4 4 4 4"/></svg>
@@ -186,7 +186,7 @@
                     <span class="library-create-label sidebar-expanded">创建</span>
                   </button>
                   <div class="library-create-menu rounded-lg border border-zinc-200 bg-white p-2 text-zinc-950 shadow-soft dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" role="menu" aria-label="创建菜单">
-                    <a href="{% url 'tracks:upload' %}" class="create-menu-item flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                    <a href="{% url 'tracks:upload' %}" class="create-menu-item flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem" hx-get="{% url 'tracks:upload' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M5 21h14"/></svg>
                       </span>
@@ -195,7 +195,7 @@
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">发布一首新的音频作品</span>
                       </span>
                     </a>
-                    <a href="{% url 'albums:playlist_create' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                    <a href="{% if request.user.is_authenticated %}{% url 'user_playlist_create' request.user.username %}{% else %}{% url 'login' %}?next={{ request.get_full_path|urlencode }}{% endif %}" {% if request.user.is_authenticated %}data-main-nav hx-get="{% url 'user_playlist_create' request.user.username %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true"{% endif %} class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M12 8h.01M15 8h.01"/></svg>
                       </span>
@@ -204,7 +204,7 @@
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">创建包含歌曲或单集的歌单</span>
                       </span>
                     </a>
-                    <a href="{% url 'albums:playlists' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                    <a href="{% if request.user.is_authenticated %}{% url 'user_playlists' request.user.username %}{% else %}{% url 'login' %}?next={{ request.get_full_path|urlencode }}{% endif %}" {% if request.user.is_authenticated %}data-main-nav hx-get="{% url 'user_playlists' request.user.username %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true"{% endif %} class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/></svg>
                       </span>
@@ -222,7 +222,7 @@
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">管理歌单</span>
                       </span>
                     </button>
-                    <a href="{% url 'lyrics:upload' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
+                    <a href="{% url 'lyrics:upload' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem" data-main-nav hx-get="{% url 'lyrics:upload' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
                       <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h12M4 13h16M4 17h10"/><path d="M18 14v6M15 17h6"/></svg>
                       </span>
@@ -236,17 +236,17 @@
               </div>
             </div>
             <div class="sidebar-expanded flex gap-3">
-              <a class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand" href="{% url 'tracks:list' %}">全部</a>
-              <a class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand" href="{% url 'tracks:latest' %}">最新</a>
+              <a class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand" href="{% url 'tracks:list' %}" data-main-nav>全部</a>
+              <a class="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium transition hover:border-brand hover:text-brand dark:border-zinc-700 dark:hover:border-brand" href="{% url 'tracks:latest' %}" data-main-nav>最新</a>
             </div>
           </section>
 
-          <section class="min-h-0">
-            <h2 class="sidebar-expanded mb-4 text-sm font-bold text-zinc-600 dark:text-zinc-300">最近播放</h2>
-            <div class="space-y-3" data-play-queue="recent-tracks" data-context-menu-kind="history">
+          <section class="sidebar-recent-section min-h-0 shrink-0">
+            <h2 class="sidebar-expanded mb-3 text-sm font-bold text-zinc-600 dark:text-zinc-300">最近播放</h2>
+            <div class="sidebar-recent-list echo-scrollbar" data-play-queue="recent-tracks" data-context-menu-kind="history">
               {% for track in shell_recent_tracks %}
                 <button type="button"
-                        class="history-track group grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-1 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                        class="history-track group grid w-full grid-cols-[44px_minmax(0,1fr)_38px] items-center gap-2 rounded-lg px-1 py-1.5 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-900"
                         title="{{ track.title }}"
                         data-echo-track
                         data-src="{{ track.audio_url|default:'' }}"
@@ -255,7 +255,7 @@
                         data-artist="{{ track.artist|default:'Echo 用户'|escape }}"
                         data-cover="{{ track.cover_theme|default:'summer' }}"
                         data-cover-url="{{ track.cover_url }}">
-                  <span class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} cover-media h-12 w-12 rounded-lg"
+                  <span class="{% if not track.cover_url %}cover-{{ track.cover_theme|default:'summer' }}{% endif %} cover-media h-11 w-11 rounded-lg"
                         {% if track.cover_url %}style="background-image: url('{{ track.cover_url }}');"{% endif %}></span>
                   <span class="sidebar-meta min-w-0">
                     <span class="block truncate font-semibold">{{ track.title }}</span>
@@ -271,18 +271,84 @@
             </div>
           </section>
 
-          <section class="sidebar-expanded">
-            <a href="{% url 'tracks:liked' %}"
-               class="group grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-900">
-              <span class="grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br from-brand via-violet-500 to-cyan-200 text-white shadow-sm">
-                <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
-              </span>
-              <span class="min-w-0">
-                <span class="block truncate font-semibold">喜欢的音乐</span>
-                <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">歌单 · <span data-liked-playlist-count>{{ shell_liked_track_count_label|default:"0" }}</span> 首歌曲</span>
-              </span>
-              <svg viewBox="0 0 24 24" class="h-4 w-4 text-zinc-400 transition group-hover:text-brand" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-            </a>
+          <section class="sidebar-expanded sidebar-playlist-section min-h-0">
+            {% if request.user.is_authenticated %}
+              <div class="space-y-6">
+                <div>
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-bold text-zinc-600 dark:text-zinc-300">我的歌单</h3>
+                    <a href="{% url 'user_playlists' request.user.username %}" class="text-xs font-bold text-brand" data-main-nav>更多</a>
+                  </div>
+                  <div class="space-y-1">
+                    <a href="{% if shell_liked_playlist %}{% url 'user_playlist_detail' request.user.username shell_liked_playlist.pk %}{% else %}{% url 'tracks:liked' %}{% endif %}"
+                       data-main-nav
+                       class="group grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-900">
+                      <span class="grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br from-brand via-violet-500 to-cyan-200 text-white shadow-sm">
+                        <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="flex items-center gap-2">
+                          <span class="block min-w-0 truncate text-sm font-semibold">喜欢的音乐</span>
+                          <span class="shrink-0 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold text-brand">置顶</span>
+                        </span>
+                        <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400"><span data-liked-playlist-count>{{ shell_liked_track_count_label|default:"0" }}</span> 首 · 私密</span>
+                      </span>
+                    </a>
+                    {% for playlist in shell_my_playlists %}
+                      <a href="{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}" class="group grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-900" data-main-nav>
+                        {% if playlist.cover_url %}
+                          <span class="h-12 w-12 rounded-lg bg-cover bg-center" style="background-image: url('{{ playlist.cover_url }}');"></span>
+                        {% else %}
+                          <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid h-12 w-12 place-items-center rounded-lg text-base font-black text-white">♫</span>
+                        {% endif %}
+                        <span class="min-w-0">
+                          <span class="block truncate text-sm font-semibold">{{ playlist.title }}</span>
+                          <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">{{ playlist.track_count }} 首 · {% if playlist.visibility == "public" %}公开{% else %}私密{% endif %}</span>
+                        </span>
+                      </a>
+                    {% empty %}{% endfor %}
+                    {% if not shell_my_playlists %}
+                      <a href="{% url 'user_playlist_create' request.user.username %}" class="block rounded-lg border border-dashed border-zinc-300 px-3 py-3 text-sm text-zinc-500 transition hover:border-brand hover:text-brand dark:border-zinc-700" data-main-nav>创建普通歌单</a>
+                    {% endif %}
+                  </div>
+                </div>
+                <div>
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <h3 class="text-sm font-bold text-zinc-600 dark:text-zinc-300">收藏的歌单</h3>
+                    <a href="{% url 'user_playlists' request.user.username %}" class="text-xs font-bold text-brand" data-main-nav>更多</a>
+                  </div>
+                  <div class="space-y-1">
+                    {% for playlist in shell_favorite_playlists %}
+                      <a href="{% url 'user_playlist_detail' playlist.creator.username playlist.pk %}" class="group grid grid-cols-[48px_minmax(0,1fr)] items-center gap-3 rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-900" data-main-nav>
+                        {% if playlist.cover_url %}
+                          <span class="h-12 w-12 rounded-lg bg-cover bg-center" style="background-image: url('{{ playlist.cover_url }}');"></span>
+                        {% else %}
+                          <span class="cover-{{ playlist.cover_theme|default:'eclipse' }} grid h-12 w-12 place-items-center rounded-lg text-base font-black text-white">♫</span>
+                        {% endif %}
+                        <span class="min-w-0">
+                          <span class="block truncate text-sm font-semibold">{{ playlist.title }}</span>
+                          <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">{{ playlist.creator_name }}</span>
+                        </span>
+                      </a>
+                    {% empty %}
+                      <a href="{% url 'user_playlists' request.user.username %}" class="block rounded-lg border border-dashed border-zinc-300 px-3 py-3 text-sm text-zinc-500 transition hover:border-brand hover:text-brand dark:border-zinc-700" data-main-nav>查看歌单中心</a>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}"
+                 class="group grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-900">
+                <span class="grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br from-brand via-violet-500 to-cyan-200 text-white shadow-sm">
+                  <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                </span>
+                <span class="min-w-0">
+                  <span class="block truncate font-semibold">喜欢的音乐</span>
+                  <span class="block truncate text-sm text-zinc-500 dark:text-zinc-400">登录后保存你的收藏</span>
+                </span>
+                <svg viewBox="0 0 24 24" class="h-4 w-4 text-zinc-400 transition group-hover:text-brand" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </a>
+            {% endif %}
           </section>
         </div>
       </aside>
@@ -475,13 +541,32 @@
       "trackLikeStatusUrlTemplate": "/tracks/__track_id__/like/status/",
       "loginUrl": "{% url 'login' %}",
       "isAuthenticated": {% if request.user.is_authenticated %}true{% else %}false{% endif %},
-      "csrfToken": "{{ csrf_token }}"
+      "csrfToken": "{{ csrf_token }}",
+      "playlistCreateUrl": "{% if request.user.is_authenticated %}{% url 'user_playlist_create' request.user.username %}{% else %}{% url 'login' %}{% endif %}",
+      "playlistTargets": [
+        {% if request.user.is_authenticated and shell_liked_playlist %}
+          {
+            "id": "{{ shell_liked_playlist.pk }}",
+            "title": "我喜欢的音乐",
+            "meta": "默认收藏",
+            "url": "{% url 'user_playlist_add_track' shell_liked_playlist.creator.username shell_liked_playlist.pk %}"
+          }{% if shell_my_playlists %},{% endif %}
+        {% endif %}
+        {% for playlist in shell_my_playlists %}
+          {
+            "id": "{{ playlist.pk }}",
+            "title": "{{ playlist.title|escapejs }}",
+            "meta": "{{ playlist.track_count }} 首 · {% if playlist.visibility == 'public' %}公开{% else %}私密{% endif %}",
+            "url": "{% url 'user_playlist_add_track' playlist.creator.username playlist.pk %}"
+          }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]
     }
   </script>
   <div id="echo-toast-region" class="pointer-events-none fixed right-4 top-4 z-[1400] flex max-w-sm flex-col gap-2" aria-live="polite" aria-atomic="true"></div>
   <script>
     window.EchoConfig = JSON.parse(document.getElementById("echo-config").textContent);
   </script>
-  <script defer src="{% static 'js/echo-shell.js' %}?v=20260521-native-range"></script>
+  <script defer src="{% static 'js/echo-shell.js' %}?v=20260525-main-nav"></script>
 </body>
 </html>

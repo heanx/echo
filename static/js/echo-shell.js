@@ -1,4 +1,4 @@
-    (function () {
+﻿    (function () {
       const root = document.documentElement;
       function readEchoConfig() {
         if (window.EchoConfig) return window.EchoConfig;
@@ -106,6 +106,7 @@
       let searchSuggestTimer = 0;
       let searchSuggestRequestId = 0;
       let trackLikeStatusRequestId = 0;
+      let trackContextSubmenuCloseTimer = 0;
 
       var lyricDistClasses = ["lyric-dist-0", "lyric-dist-1", "lyric-dist-2", "lyric-dist-3", "lyric-dist-4", "lyric-dist-far"];
 
@@ -130,6 +131,31 @@
             item.remove();
           }, 220);
         }, 2600);
+      }
+      function copyTextToClipboard(text, successMessage) {
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            showToast(successMessage || "链接已复制。", "info");
+          }).catch(function () {
+            showToast("复制失败，请手动复制。", "error");
+          });
+          return;
+        }
+        var input = document.createElement("textarea");
+        input.value = text;
+        input.setAttribute("readonly", "readonly");
+        input.style.position = "fixed";
+        input.style.left = "-9999px";
+        document.body.appendChild(input);
+        input.select();
+        try {
+          document.execCommand("copy");
+          showToast(successMessage || "链接已复制。", "info");
+        } catch (_error) {
+          showToast("复制失败，请手动复制。", "error");
+        }
+        input.remove();
       }
       function setPlayerStatus(message) {
         if (!playerStatus) return;
@@ -1129,6 +1155,53 @@
           form.dataset.echoDirty = "false";
         });
       }
+      function applyMainContentSwap(html, url) {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const nextMain = extractMainContent(doc);
+        const currentMain = document.getElementById("main-content");
+        if (!nextMain || !currentMain) return false;
+        currentMain.outerHTML = nextMain.outerHTML;
+        clearMainContentDirtyState();
+        syncMainResourceState();
+        syncLyricsPanelTheme();
+        initPlaylistTabs(document);
+        initInfiniteLists(document);
+        if (url) history.pushState({}, "", url);
+        return true;
+      }
+      function loadMainContentUrl(url) {
+        if (!url) return false;
+        if (mainContentHasDirtyForm()) {
+          const ok = window.confirm("当前页面有未保存的编辑内容，确定要离开吗？");
+          if (!ok) return false;
+        }
+        setCreateMenu(false);
+        setAccountMenu(false);
+        hideTopSearchSuggestions();
+        cancelActiveResourceLoad();
+        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" } })
+          .then(function (response) {
+            if (!response.ok) throw new Error("main navigation failed");
+            return response.text();
+          })
+          .then(function (html) {
+            if (!applyMainContentSwap(html, url)) window.location.href = url;
+          })
+          .catch(function () {
+            showToast("内容加载失败，已切换为完整页面。", "error");
+            window.location.href = url;
+          });
+        return false;
+      }
+      function urlFromMainNavForm(form) {
+        const action = form.getAttribute("action") || window.location.pathname;
+        const method = (form.getAttribute("method") || "get").toLowerCase();
+        if (method !== "get") return "";
+        const url = new URL(action, window.location.origin);
+        const params = new URLSearchParams(new FormData(form));
+        url.search = params.toString();
+        return url.pathname + url.search + url.hash;
+      }
       function resetMainContentToHome() {
         if (mainContentHasDirtyForm()) {
           const ok = window.confirm("当前页面有未保存的编辑内容，确定要回到首页吗？");
@@ -1145,9 +1218,7 @@
               window.location.href = echoConfig.homeUrl;
               return;
             }
-            currentMain.outerHTML = nextMain.outerHTML;
-            clearMainContentDirtyState();
-            history.pushState({}, "", echoConfig.homeUrl);
+            applyMainContentSwap(html, echoConfig.homeUrl);
           })
           .catch(function () {
             showToast("首页加载失败，已为你切回完整页面。", "error");
@@ -1431,16 +1502,50 @@
       }
       function hideTrackContextMenu() {
         if (!trackContextMenu) return;
+        window.clearTimeout(trackContextSubmenuCloseTimer);
         trackContextMenu.classList.remove("is-open");
         trackContextMenu.setAttribute("aria-hidden", "true");
         trackContextElement = null;
       }
-      function addTrackContextMenuItem(menu, label, action, danger) {
+      function setTrackSubmenuOpen(wrapper, open, persistMultiplier) {
+        if (!wrapper) return;
+        window.clearTimeout(trackContextSubmenuCloseTimer);
+        if (open) {
+          wrapper.classList.add("is-submenu-open");
+          return;
+        }
+        trackContextSubmenuCloseTimer = window.setTimeout(function () {
+          wrapper.classList.remove("is-submenu-open");
+        }, persistMultiplier ? 900 : 450);
+      }
+      function addTrackContextMenuSeparator(menu) {
+        var separator = document.createElement("div");
+        separator.className = "track-context-menu-separator";
+        separator.setAttribute("role", "separator");
+        menu.appendChild(separator);
+      }
+      function addTrackContextMenuItem(menu, label, action, danger, options) {
+        var itemOptions = options || {};
         var button = document.createElement("button");
         button.type = "button";
         button.className = "track-context-menu-item" + (danger ? " is-danger" : "");
         button.setAttribute("role", "menuitem");
-        button.textContent = label;
+        if (itemOptions.icon) {
+          var icon = document.createElement("span");
+          icon.className = "track-context-menu-icon";
+          icon.innerHTML = itemOptions.icon;
+          button.appendChild(icon);
+        }
+        var text = document.createElement("span");
+        text.className = "track-context-menu-label";
+        text.textContent = label;
+        button.appendChild(text);
+        if (itemOptions.suffix) {
+          var suffix = document.createElement("span");
+          suffix.className = "track-context-menu-suffix";
+          suffix.textContent = itemOptions.suffix;
+          button.appendChild(suffix);
+        }
         button.addEventListener("click", function () {
           var element = trackContextElement;
           var track = trackFromElement(element);
@@ -1448,6 +1553,91 @@
           action(track, element);
         });
         menu.appendChild(button);
+      }
+      function submitTrackToPlaylist(track, target) {
+        if (!track || !track.id || !target || !target.url) return;
+        var formData = new FormData();
+        formData.set("track", track.id);
+        fetch(target.url, {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin",
+          headers: {
+            "X-CSRFToken": echoConfig.csrfToken || "",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        }).then(function (response) {
+          if (!response.ok) throw new Error("playlist add failed");
+          showToast("已收藏到 " + (target.title || "歌单") + "。", "info");
+        }).catch(function () {
+          showToast("收藏失败，请稍后再试。", "error");
+        });
+      }
+      function addPlaylistFavoriteSubmenu(menu) {
+        var wrapper = document.createElement("div");
+        wrapper.className = "track-context-submenu-wrap";
+        wrapper.setAttribute("role", "none");
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "track-context-menu-item";
+        button.setAttribute("role", "menuitem");
+        button.setAttribute("aria-haspopup", "menu");
+        button.innerHTML = '<span class="track-context-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span><span class="track-context-menu-label">收藏</span><span class="track-context-menu-suffix">›</span>';
+        var submenu = document.createElement("div");
+        submenu.className = "track-context-submenu";
+        submenu.setAttribute("role", "menu");
+        var createLink = document.createElement("a");
+        createLink.className = "track-context-menu-item";
+        createLink.href = echoConfig.isAuthenticated ? (echoConfig.playlistCreateUrl || "#") : (echoConfig.loginUrl || "/login/");
+        createLink.innerHTML = '<span class="track-context-menu-icon">＋</span><span class="track-context-menu-label">创建新歌单</span>';
+        submenu.appendChild(createLink);
+        if (echoConfig.isAuthenticated && Array.isArray(echoConfig.playlistTargets) && echoConfig.playlistTargets.length) {
+          addTrackContextMenuSeparator(submenu);
+          echoConfig.playlistTargets.forEach(function (target) {
+            var item = document.createElement("button");
+            item.type = "button";
+            item.className = "track-context-playlist-target";
+            item.setAttribute("role", "menuitem");
+            var cover = document.createElement("span");
+            cover.className = "track-context-playlist-cover";
+            cover.textContent = target.title === "我喜欢的音乐" ? "♥" : "♪";
+            var text = document.createElement("span");
+            text.className = "min-w-0";
+            var titleNode = document.createElement("span");
+            titleNode.className = "block truncate font-semibold";
+            titleNode.textContent = target.title || "歌单";
+            var metaNode = document.createElement("span");
+            metaNode.className = "block truncate text-xs text-zinc-500";
+            metaNode.textContent = target.meta || "";
+            text.append(titleNode, metaNode);
+            item.append(cover, text);
+            item.addEventListener("click", function (event) {
+              event.stopPropagation();
+              var element = trackContextElement;
+              var track = trackFromElement(element);
+              hideTrackContextMenu();
+              submitTrackToPlaylist(track, target);
+            });
+            submenu.appendChild(item);
+          });
+        }
+        wrapper.append(button, submenu);
+        wrapper.addEventListener("pointerenter", function () {
+          setTrackSubmenuOpen(wrapper, true);
+        });
+        wrapper.addEventListener("pointerleave", function () {
+          setTrackSubmenuOpen(wrapper, false, wrapper.dataset.stickySubmenu === "true");
+        });
+        button.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          wrapper.dataset.stickySubmenu = "true";
+          setTrackSubmenuOpen(wrapper, true);
+          window.setTimeout(function () {
+            if (wrapper) wrapper.dataset.stickySubmenu = "false";
+          }, 1800);
+        });
+        menu.appendChild(wrapper);
       }
       function showTrackContextMenu(event, trigger) {
         var track = trackFromElement(trigger);
@@ -1458,41 +1648,133 @@
         menu.innerHTML = "";
         trackContextElement = trigger;
         var kind = contextMenuKind(trigger);
-        addTrackContextMenuItem(menu, kind === "detail" ? "\u64ad\u653e\u8fd9\u9996" : "\u7acb\u5373\u64ad\u653e", function (item, element) {
+        addTrackContextMenuItem(menu, "播放", function (item, element) {
           var queueContext = resolveQueueContext(element);
           playTrack(item, { source: "context-menu", queue: queueContext.queue, queueName: queueContext.name, queueIndex: queueContext.index });
-        });
-        if (kind === "queue") {
-          addTrackContextMenuItem(menu, "\u79fb\u5230\u4e0b\u4e00\u9996\u64ad\u653e", function (_item, element) {
+        }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7Z"/></svg>' });
+        addTrackContextMenuItem(menu, "下一首播放", function (item, element) {
+          if (kind === "queue") {
             moveQueueElementNext(element);
-          });
-          addTrackContextMenuItem(menu, "\u4ece\u64ad\u653e\u961f\u5217\u79fb\u9664", function (_item, element) {
+            return;
+          }
+          insertTrackInPlayQueue(item, "next");
+        }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="m17 10-5-5-5 5"/></svg>' });
+        addTrackContextMenuSeparator(menu);
+        addPlaylistFavoriteSubmenu(menu);
+        addTrackContextMenuItem(menu, "查看评论", function (item) {
+          if (item && item.id) loadMainContentUrl((echoConfig.commentsUrl || "/comments/") + "?track=" + encodeURIComponent(item.id));
+        }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>' });
+        addTrackContextMenuItem(menu, "分享...", function (item) {
+          if (item && item.id) copyTextToClipboard(window.location.origin + "/tracks/" + encodeURIComponent(item.id) + "/", "歌曲链接已复制。");
+        }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8h16v-8"/><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/></svg>' });
+        addTrackContextMenuItem(menu, "复制链接", function (item) {
+          if (item && item.id) copyTextToClipboard(window.location.origin + "/tracks/" + encodeURIComponent(item.id) + "/", "歌曲链接已复制。");
+        }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>' });
+        if (kind === "playlist-detail") {
+          var playlistRow = trigger ? trigger.closest("[data-playlist-row]") : null;
+          if (playlistRow && playlistRow.querySelector("[data-playlist-remove-form]")) {
+            addTrackContextMenuSeparator(menu);
+            addTrackContextMenuItem(menu, "从歌单中删除", function (_item, element) {
+              var row = element ? element.closest("[data-playlist-row]") : null;
+              var form = row ? row.querySelector("[data-playlist-remove-form]") : null;
+              if (form && window.confirm("确定从歌单中删除这首歌吗？")) form.submit();
+            }, true, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>' });
+          }
+        } else if (kind === "queue") {
+          addTrackContextMenuSeparator(menu);
+          addTrackContextMenuItem(menu, "从播放队列移除", function (_item, element) {
             removeTrackFromPlayQueue(element);
-          }, true);
-          addTrackContextMenuItem(menu, "\u67e5\u770b\u6b4c\u66f2", function (item) {
-            if (item && item.id) window.location.href = "/tracks/" + encodeURIComponent(item.id) + "/";
-          });
+          }, true, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>' });
         } else {
-          addTrackContextMenuItem(menu, "\u4e0b\u4e00\u9996\u64ad\u653e", function (item) {
-            insertTrackInPlayQueue(item, "next");
-          });
-          addTrackContextMenuItem(menu, "\u52a0\u5165\u64ad\u653e\u961f\u5217", function (item) {
+          addTrackContextMenuItem(menu, "加入播放队列", function (item) {
             insertTrackInPlayQueue(item, "end");
-          });
+          }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 12h.01"/></svg>' });
           if (kind !== "detail") {
-            addTrackContextMenuItem(menu, "\u67e5\u770b\u6b4c\u66f2", function (item) {
-              if (item && item.id) window.location.href = "/tracks/" + encodeURIComponent(item.id) + "/";
-            });
+            addTrackContextMenuItem(menu, "查看歌曲", function (item) {
+              if (item && item.id) loadMainContentUrl("/tracks/" + encodeURIComponent(item.id) + "/");
+            }, false, { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>' });
           }
         }
         var margin = 10;
         menu.classList.add("is-open");
         menu.setAttribute("aria-hidden", "false");
         var rect = menu.getBoundingClientRect();
-        var left = Math.min(event.clientX, window.innerWidth - rect.width - margin);
+        var submenuWidth = 260;
+        var left = Math.min(event.clientX, window.innerWidth - rect.width - submenuWidth - margin);
         var top = Math.min(event.clientY, window.innerHeight - rect.height - margin);
         menu.style.left = Math.max(margin, left) + "px";
         menu.style.top = Math.max(margin, top) + "px";
+      }
+      var playlistDragRow = null;
+      var playlistLongPressTimer = 0;
+      function clearPlaylistDropMarks() {
+        document.querySelectorAll(".playlist-song-row.is-drop-before, .playlist-song-row.is-drop-after").forEach(function (row) {
+          row.classList.remove("is-drop-before", "is-drop-after");
+        });
+      }
+      function playlistSortableRow(target) {
+        var row = target ? target.closest("[data-playlist-sortable='true']") : null;
+        if (!row) return null;
+        if (target.closest("button, a, input, select, textarea, form")) return null;
+        return row;
+      }
+      function enablePlaylistDrag(row) {
+        row.setAttribute("draggable", "true");
+        row.classList.add("is-drag-ready");
+      }
+      function submitPlaylistReorder(row, targetIndex) {
+        if (!row || targetIndex < 0) return;
+        var form = row.querySelector("[data-playlist-reorder-form]");
+        var input = row.querySelector("[data-playlist-position-input]");
+        if (!form || !input) return;
+        input.value = String(targetIndex);
+        form.submit();
+      }
+      function initPlaylistTabs(scope) {
+        var rootNode = scope || document;
+        rootNode.querySelectorAll("[data-playlist-tab]").forEach(function (tabButton) {
+          if (tabButton.dataset.tabReady === "true") return;
+          tabButton.dataset.tabReady = "true";
+          tabButton.addEventListener("click", function () {
+            var name = tabButton.dataset.playlistTab;
+            var container = tabButton.closest("[data-context-menu-kind='playlist-detail']");
+            if (!container || !name) return;
+            container.querySelectorAll("[data-playlist-tab]").forEach(function (button) {
+              var active = button === tabButton;
+              button.classList.toggle("is-active", active);
+              button.setAttribute("aria-selected", active ? "true" : "false");
+            });
+            container.querySelectorAll("[data-playlist-panel]").forEach(function (panel) {
+              panel.classList.toggle("is-active", panel.dataset.playlistPanel === name);
+            });
+            initInfiniteLists(container);
+          });
+        });
+      }
+      function initInfiniteLists(scope) {
+        var rootNode = scope || document;
+        rootNode.querySelectorAll("[data-infinite-list]").forEach(function (list) {
+          var step = parseInt(list.dataset.infiniteStep || "12", 10);
+          if (!Number.isFinite(step) || step < 1) step = 12;
+          var visible = parseInt(list.dataset.infiniteVisible || String(step), 10);
+          if (!Number.isFinite(visible) || visible < step) visible = step;
+          var items = Array.from(list.querySelectorAll(":scope > [data-infinite-item]"));
+          var more = list.querySelector(":scope > [data-infinite-more]");
+          items.forEach(function (item, index) {
+            item.classList.toggle("is-infinite-hidden", index >= visible);
+          });
+          if (more) {
+            more.classList.toggle("is-hidden", visible >= items.length);
+            if (more.dataset.infiniteReady !== "true") {
+              more.dataset.infiniteReady = "true";
+              more.addEventListener("click", function () {
+                var currentVisible = parseInt(list.dataset.infiniteVisible || String(step), 10);
+                list.dataset.infiniteVisible = String(currentVisible + step);
+                initInfiniteLists(list);
+              });
+            }
+          }
+        });
       }
 
       function searchUrlFor(query) {
@@ -1552,6 +1834,7 @@
           var link = document.createElement("a");
           link.className = "flex items-center gap-4 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
           link.href = searchUrlFor(suggestion);
+          link.dataset.mainNav = "";
           appendSuggestionIcon(link);
           var text = document.createElement("span");
           text.className = "min-w-0 truncate text-base font-bold";
@@ -1589,10 +1872,41 @@
           topSearchSuggestions.appendChild(button);
         });
 
+        (payload.playlists || []).forEach(function (playlist) {
+          hasContent = true;
+          var link = document.createElement("a");
+          link.className = "group grid w-full grid-cols-[48px_minmax(0,1fr)_32px] items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
+          link.href = playlist.url || searchUrlFor(query);
+          link.dataset.mainNav = "";
+          var coverNode = document.createElement("span");
+          coverNode.className = "grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-cover bg-center text-white";
+          if (playlist.cover_url) {
+            coverNode.style.backgroundImage = 'url("' + playlist.cover_url + '")';
+          } else {
+            coverNode.classList.add("cover-" + (playlist.cover_theme || "eclipse"));
+            coverNode.textContent = "♫";
+          }
+          var meta = document.createElement("span");
+          meta.className = "min-w-0";
+          var playlistTitle = document.createElement("span");
+          playlistTitle.className = "block truncate text-base font-bold";
+          playlistTitle.textContent = playlist.title || "未命名歌单";
+          var playlistMeta = document.createElement("span");
+          playlistMeta.className = "block truncate text-sm text-zinc-500 dark:text-zinc-400";
+          playlistMeta.textContent = "歌单 · " + (playlist.creator || "Echo 用户") + " · " + (playlist.track_count || 0) + " 首";
+          meta.append(playlistTitle, playlistMeta);
+          var arrow = document.createElement("span");
+          arrow.className = "grid h-8 w-8 place-items-center rounded-full text-zinc-500 transition group-hover:bg-zinc-200 group-hover:text-zinc-950 dark:group-hover:bg-zinc-700 dark:group-hover:text-white";
+          arrow.innerHTML = '<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>';
+          link.append(coverNode, meta, arrow);
+          topSearchSuggestions.appendChild(link);
+        });
+
         if (!hasContent && query) {
           var empty = document.createElement("a");
           empty.className = "flex items-center gap-4 rounded-lg px-3 py-3 transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
           empty.href = searchUrlFor(query);
+          empty.dataset.mainNav = "";
           appendSuggestionIcon(empty);
           var emptyText = document.createElement("span");
           var emptyTitle = document.createElement("span");
@@ -1655,6 +1969,25 @@
         }
         return resetMainContentToHome();
       };
+      document.addEventListener("click", function (event) {
+        const link = event.target.closest("a[data-main-nav]");
+        if (!link || event.defaultPrevented) return;
+        if (link.hasAttribute("hx-get")) return;
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (link.target && link.target !== "_self") return;
+        const url = new URL(link.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        event.preventDefault();
+        loadMainContentUrl(url.pathname + url.search + url.hash);
+      });
+      document.addEventListener("submit", function (event) {
+        const form = event.target.closest("form[data-main-nav-form]");
+        if (!form) return;
+        const url = urlFromMainNavForm(form);
+        if (!url) return;
+        event.preventDefault();
+        loadMainContentUrl(url);
+      });
 
       applyTheme(readPersistedValue("echo_theme", root.dataset.echoTheme || "dark"));
       applySidebar(localStorage.getItem("echo_sidebar_collapsed") === "true");
@@ -1991,7 +2324,7 @@
         showToast("当前音频加载失败，请稍后重试。", "error");
       });
       document.body.addEventListener("click", function (event) {
-        hideTrackContextMenu();
+        if (!event.target.closest("#echo-track-context-menu")) hideTrackContextMenu();
         const likeButton = event.target.closest("[data-comment-like]");
         if (likeButton) {
           event.preventDefault();
@@ -2011,6 +2344,57 @@
         if (replyButton) {
           event.preventDefault();
           toggleReplyForm(replyButton);
+          return;
+        }
+
+        const copyUrlButton = event.target.closest("[data-copy-url]");
+        if (copyUrlButton) {
+          event.preventDefault();
+          copyTextToClipboard(copyUrlButton.dataset.copyUrl || window.location.href, "歌单链接已复制。");
+          return;
+        }
+
+        const playAllButton = event.target.closest("[data-playlist-play-all]");
+        if (playAllButton) {
+          const container = playAllButton.closest(".playlist-detail-page");
+          const queueHolder = container ? container.querySelector("[data-play-queue]") : null;
+          const firstTrack = queueHolder ? queueHolder.querySelector("[data-echo-track]") : null;
+          if (firstTrack) {
+            var allQueueContext = resolveQueueContext(firstTrack);
+            playTrack(trackFromElement(firstTrack), {
+              source: "playlist-play-all",
+              queue: allQueueContext.queue,
+              queueName: allQueueContext.name,
+              queueIndex: allQueueContext.index,
+            });
+          }
+          return;
+        }
+
+        const playlistNextButton = event.target.closest("[data-playlist-next]");
+        if (playlistNextButton) {
+          event.preventDefault();
+          var nextRow = playlistNextButton.closest("[data-playlist-row]");
+          var nextTrigger = nextRow ? nextRow.querySelector("[data-echo-track]") : null;
+          insertTrackInPlayQueue(trackFromElement(nextTrigger), "next");
+          return;
+        }
+
+        const playlistLikeButton = event.target.closest("[data-playlist-like]");
+        if (playlistLikeButton) {
+          event.preventDefault();
+          var likeRow = playlistLikeButton.closest("[data-playlist-row]");
+          var rowLikeButton = likeRow ? likeRow.querySelector("[data-track-like]") : null;
+          if (rowLikeButton) toggleTrackLike(rowLikeButton);
+          return;
+        }
+
+        const playlistMoreButton = event.target.closest("[data-playlist-more]");
+        if (playlistMoreButton) {
+          event.preventDefault();
+          var moreRow = playlistMoreButton.closest("[data-playlist-row]");
+          var moreTrigger = moreRow ? moreRow.querySelector("[data-echo-track]") : null;
+          if (moreTrigger) showTrackContextMenu(event, moreTrigger);
           return;
         }
 
@@ -2040,7 +2424,60 @@
       });
       document.body.addEventListener("pointerdown", function (event) {
         pointerActivatedTrack = Boolean(event.target.closest("[data-echo-track]"));
+        var sortableRow = playlistSortableRow(event.target);
+        if (sortableRow) {
+          window.clearTimeout(playlistLongPressTimer);
+          playlistLongPressTimer = window.setTimeout(function () {
+            enablePlaylistDrag(sortableRow);
+          }, 320);
+        }
       }, true);
+      document.body.addEventListener("pointerup", function () {
+        window.clearTimeout(playlistLongPressTimer);
+      }, true);
+      document.body.addEventListener("pointercancel", function () {
+        window.clearTimeout(playlistLongPressTimer);
+      }, true);
+      document.body.addEventListener("dragstart", function (event) {
+        var row = event.target.closest("[data-playlist-sortable='true']");
+        if (!row || row.getAttribute("draggable") !== "true") {
+          event.preventDefault();
+          return;
+        }
+        playlistDragRow = row;
+        row.classList.add("is-dragging");
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", row.dataset.rowPosition || "");
+        }
+      });
+      document.body.addEventListener("dragover", function (event) {
+        if (!playlistDragRow) return;
+        var targetRow = event.target.closest("[data-playlist-sortable='true']");
+        if (!targetRow || targetRow === playlistDragRow) return;
+        event.preventDefault();
+        clearPlaylistDropMarks();
+        var rect = targetRow.getBoundingClientRect();
+        targetRow.classList.add(event.clientY < rect.top + rect.height / 2 ? "is-drop-before" : "is-drop-after");
+      });
+      document.body.addEventListener("drop", function (event) {
+        if (!playlistDragRow) return;
+        var targetRow = event.target.closest("[data-playlist-sortable='true']");
+        if (!targetRow || targetRow === playlistDragRow) return;
+        event.preventDefault();
+        var rows = Array.from(targetRow.parentElement.querySelectorAll("[data-playlist-sortable='true']"));
+        var targetIndex = rows.indexOf(targetRow);
+        if (targetRow.classList.contains("is-drop-after")) targetIndex += 1;
+        submitPlaylistReorder(playlistDragRow, targetIndex);
+      });
+      document.body.addEventListener("dragend", function () {
+        if (playlistDragRow) {
+          playlistDragRow.classList.remove("is-dragging", "is-drag-ready");
+          playlistDragRow.removeAttribute("draggable");
+        }
+        playlistDragRow = null;
+        clearPlaylistDropMarks();
+      });
       document.body.addEventListener("contextmenu", function (event) {
         var trigger = event.target.closest("[data-echo-track]");
         if (!trigger) {
@@ -2089,7 +2526,11 @@
       document.addEventListener("htmx:afterSettle", function () {
         syncMainResourceState();
         syncLyricsPanelTheme();
+        initPlaylistTabs(document);
+        initInfiniteLists(document);
       });
+      initPlaylistTabs(document);
+      initInfiniteLists(document);
       syncMainResourceState();
       syncLyricsPanelTheme();
     })();

@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from albums.models import Album, Playlist, PlaylistTrack
+from albums.models import Album, Playlist, PlaylistFavorite, PlaylistTrack
 from comments.models import TrackComment, TrackCommentReaction
 from core.models import Notification
 from lyrics.models import TrackLyrics
@@ -138,14 +138,21 @@ class TrackLikeTests(TestCase):
 
     def test_liked_tracks_page_lists_only_public_likes(self):
         hidden = Track.objects.create(title="Hidden Like", artist="Echo", status=Track.STATUS_HIDDEN)
-        TrackLike.objects.create(track=self.track, user=self.user)
-        TrackLike.objects.create(track=hidden, user=self.user)
         self.client.force_login(self.user)
-        response = self.client.get(reverse("tracks:liked"))
+        self.client.post(reverse("tracks:toggle_like", kwargs={"pk": self.track.pk}))
+        TrackLike.objects.create(track=hidden, user=self.user)
+        liked_playlist = Playlist.objects.get(creator=self.user, playlist_type=Playlist.TYPE_LIKED)
+
+        response = self.client.get(reverse("tracks:liked"), follow=True)
+
         self.assertEqual(response.status_code, 200)
+        self.assertRedirects(
+            response,
+            reverse("user_playlist_detail", kwargs={"username": self.user.username, "pk": liked_playlist.pk}),
+        )
         self.assertContains(response, "Likeable")
         self.assertNotContains(response, "Hidden Like")
-        self.assertContains(response, 'data-play-queue="liked-tracks"')
+        self.assertContains(response, 'data-play-queue="playlist-')
 
     def test_like_status_reports_current_user_state(self):
         response = self.client.get(reverse("tracks:like_status", kwargs={"pk": self.track.pk}))
@@ -246,6 +253,37 @@ class CommentInteractionTests(TestCase):
         response = self.client.post(reverse("comments:toggle_like", kwargs={"comment_id": self.comment.pk}))
         self.assertEqual(response.status_code, 404)
         self.assertFalse(TrackCommentReaction.objects.filter(comment=self.comment, user=self.user).exists())
+
+    def test_comments_are_paginated(self):
+        for index in range(12):
+            TrackComment.objects.create(track=self.track, user=self.user, body=f"Comment {index}")
+
+        response = self.client.get(reverse("comments"), {"track": self.track.pk})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["comments"]), 10)
+        self.assertEqual(response.context["comment_count"], 13)
+        self.assertTrue(response.context["pagination"]["has_other_pages"])
+
+    def test_comment_owner_can_delete_comment(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("comments:delete", kwargs={"comment_id": self.comment.pk}))
+
+        self.assertRedirects(response, f"/comments/?track={self.track.pk}", fetch_redirect_response=False)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.status, TrackComment.STATUS_DELETED)
+
+    def test_track_owner_can_delete_comment(self):
+        owner = User.objects.create_user(username="track-owner", password="a-strong-test-pass-123")
+        self.track.owner = owner
+        self.track.save(update_fields=["owner"])
+        self.client.force_login(owner)
+
+        response = self.client.post(reverse("comments:delete", kwargs={"comment_id": self.comment.pk}))
+
+        self.assertRedirects(response, f"/comments/?track={self.track.pk}", fetch_redirect_response=False)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.status, TrackComment.STATUS_DELETED)
 
 
 class NotificationViewTests(TestCase):
@@ -722,12 +760,25 @@ class UserAvatarRenderingTests(TestCase):
 class SearchPaginationTests(TestCase):
     @classmethod
     def setUpTestData(cls):
+        cls.playlist_owner = User.objects.create_user(username="playlist-search-owner", password="a-strong-test-pass-123")
         for index in range(25):
             Track.objects.create(
                 title=f"Searchable Track {index:02d}",
                 artist="Search Artist",
                 status=Track.STATUS_PUBLISHED,
             )
+        Playlist.objects.create(
+            title="Searchable Road Mix",
+            description="Searchable playlist description",
+            creator=cls.playlist_owner,
+            visibility=Playlist.VISIBILITY_PUBLIC,
+            track_count=3,
+        )
+        Playlist.objects.create(
+            title="Searchable Private Mix",
+            creator=cls.playlist_owner,
+            visibility=Playlist.VISIBILITY_PRIVATE,
+        )
 
     def test_search_results_are_paginated(self):
         response = self.client.get(reverse("search"), {"q": "Searchable", "type": "tracks"})
@@ -752,69 +803,167 @@ class SearchPaginationTests(TestCase):
         self.assertTrue(payload["tracks"])
         self.assertIn("audio_url", payload["tracks"][0])
 
+    def test_search_results_include_public_playlists(self):
+        response = self.client.get(reverse("search"), {"q": "Searchable", "type": "playlists"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_type"], "playlists")
+        self.assertEqual(response.context["total_playlists"], 1)
+        self.assertContains(response, "Searchable Road Mix")
+        self.assertNotContains(response, "Searchable Private Mix")
+
+    def test_search_suggest_returns_playlists(self):
+        response = self.client.get(reverse("search_suggest"), {"q": "Road Mix"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["playlists"])
+        self.assertEqual(payload["playlists"][0]["title"], "Searchable Road Mix")
+
 
 class PlaylistCrudTests(TestCase):
     def setUp(self):
+        self.media_root = tempfile.mkdtemp()
+        self.override = override_settings(MEDIA_ROOT=self.media_root)
+        self.override.enable()
         self.user = User.objects.create_user(username="playlist-owner", password="a-strong-test-pass-123")
         self.track = Track.objects.create(title="Playlist Track", artist="Echo", status=Track.STATUS_PUBLISHED)
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.media_root, ignore_errors=True)
+
+    def playlist_url(self, name, playlist=None, **kwargs):
+        params = {"username": self.user.username, **kwargs}
+        if playlist:
+            params["pk"] = playlist.pk
+        return reverse(name, kwargs=params)
 
     def test_playlist_create_edit_and_detail(self):
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse("albums:playlist_create"),
+            reverse("user_playlist_create", kwargs={"username": self.user.username}),
             {
                 "title": "Road Mix",
                 "description": "For late rides",
-                "is_public": "on",
+                "visibility": Playlist.VISIBILITY_PUBLIC,
                 "cover_theme": "night",
             },
         )
         playlist = Playlist.objects.get(title="Road Mix")
-        self.assertRedirects(response, reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
         response = self.client.post(
-            reverse("albums:playlist_edit", kwargs={"pk": playlist.pk}),
+            self.playlist_url("user_playlist_edit", playlist),
             {
                 "title": "Road Mix 2",
                 "description": "Updated",
-                "is_public": "on",
+                "visibility": Playlist.VISIBILITY_PUBLIC,
                 "cover_theme": "forest",
             },
         )
-        self.assertRedirects(response, reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
         playlist.refresh_from_db()
         self.assertEqual(playlist.title, "Road Mix 2")
-        response = self.client.get(reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        response = self.client.get(self.playlist_url("user_playlist_detail", playlist))
         self.assertContains(response, 'data-play-queue="playlist-')
 
     def test_playlist_add_reorder_and_remove_track(self):
-        playlist = Playlist.objects.create(title="Queue", owner=self.user)
+        playlist = Playlist.objects.create(title="Queue", creator=self.user)
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse("albums:playlist_add_track", kwargs={"pk": playlist.pk}),
+            self.playlist_url("user_playlist_add_track", playlist),
             {"track": self.track.pk, "position": 2},
         )
-        self.assertRedirects(response, reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
         item = PlaylistTrack.objects.get(playlist=playlist, track=self.track)
         self.assertEqual(item.position, 2)
         response = self.client.post(
-            reverse("albums:playlist_reorder_track", kwargs={"pk": playlist.pk, "item_id": item.pk}),
+            self.playlist_url("user_playlist_reorder_track", playlist, item_id=item.pk),
             {"position": 0},
         )
-        self.assertRedirects(response, reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
         item.refresh_from_db()
         self.assertEqual(item.position, 0)
         response = self.client.post(
-            reverse("albums:playlist_remove_track", kwargs={"pk": playlist.pk, "item_id": item.pk})
+            self.playlist_url("user_playlist_remove_track", playlist, item_id=item.pk)
         )
-        self.assertRedirects(response, reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
         self.assertFalse(PlaylistTrack.objects.filter(pk=item.pk).exists())
+
+    def test_playlist_bulk_manage_removes_selected_tracks(self):
+        playlist = Playlist.objects.create(title="Queue", creator=self.user)
+        second_track = Track.objects.create(title="Second Track", artist="Echo", status=Track.STATUS_PUBLISHED)
+        first_item = PlaylistTrack.objects.create(playlist=playlist, track=self.track, position=0)
+        second_item = PlaylistTrack.objects.create(playlist=playlist, track=second_track, position=1)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.playlist_url("user_playlist_bulk_manage", playlist),
+            {"action": "remove", "selected_items": [first_item.pk]},
+        )
+
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
+        self.assertFalse(PlaylistTrack.objects.filter(pk=first_item.pk).exists())
+        self.assertTrue(PlaylistTrack.objects.filter(pk=second_item.pk).exists())
+
+    def test_playlist_cover_upload_is_saved(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("user_playlist_create", kwargs={"username": self.user.username}),
+            {
+                "title": "Cover Mix",
+                "description": "",
+                "visibility": Playlist.VISIBILITY_PUBLIC,
+                "cover_theme": "night",
+                "cover_image": SimpleUploadedFile(
+                    "cover.png",
+                    base64.b64decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+                    ),
+                    content_type="image/png",
+                ),
+            },
+        )
+
+        playlist = Playlist.objects.get(title="Cover Mix")
+        self.assertRedirects(response, self.playlist_url("user_playlist_detail", playlist))
+        self.assertTrue(playlist.cover_image)
 
     def test_private_playlist_is_hidden_from_other_users(self):
         other = User.objects.create_user(username="playlist-viewer", password="a-strong-test-pass-123")
-        playlist = Playlist.objects.create(title="Private", owner=self.user, is_public=False)
+        playlist = Playlist.objects.create(title="Private", creator=self.user, visibility=Playlist.VISIBILITY_PRIVATE)
         self.client.force_login(other)
-        response = self.client.get(reverse("albums:playlist_detail", kwargs={"pk": playlist.pk}))
+        response = self.client.get(reverse("user_playlist_detail", kwargs={"username": self.user.username, "pk": playlist.pk}))
         self.assertEqual(response.status_code, 404)
+
+    def test_old_albums_playlist_route_is_removed(self):
+        response = self.client.get("/albums/playlists/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_top_level_playlist_route_is_removed(self):
+        playlist = Playlist.objects.create(title="Gone", creator=self.user)
+        response = self.client.get(f"/playlists/{playlist.pk}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_user_playlist_center_shows_owner_sections(self):
+        Playlist.objects.create(title="Mine", creator=self.user)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("user_playlists", kwargs={"username": self.user.username}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "我喜欢的音乐")
+        self.assertContains(response, "我的歌单")
+        self.assertContains(response, "收藏的歌单")
+        self.assertContains(response, "置顶")
+
+    def test_public_playlist_can_be_favorited(self):
+        other = User.objects.create_user(username="playlist-maker", password="a-strong-test-pass-123")
+        playlist = Playlist.objects.create(title="Public", creator=other, visibility=Playlist.VISIBILITY_PUBLIC)
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("user_playlist_favorite", kwargs={"username": other.username, "pk": playlist.pk}))
+
+        self.assertRedirects(response, reverse("user_playlist_detail", kwargs={"username": other.username, "pk": playlist.pk}))
+        self.assertTrue(PlaylistFavorite.objects.filter(user=self.user, playlist=playlist).exists())
 
 
 class MediaLifecycleTests(TestCase):

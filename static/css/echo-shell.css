@@ -50,13 +50,48 @@
       min-width: 0;
       width: 100%;
     }
+    .sidebar-body {
+      gap: 18px;
+      overscroll-behavior: contain;
+    }
     .sidebar-body > section {
       min-width: 0;
       padding-left: 4px;
       padding-right: 4px;
     }
+    .sidebar-library-head {
+      position: relative;
+      z-index: 2;
+      margin-bottom: 4px;
+    }
+    .sidebar-recent-section {
+      position: relative;
+      z-index: 1;
+    }
+    .sidebar-recent-list {
+      display: grid;
+      gap: 6px;
+      max-height: min(236px, 31vh);
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .sidebar-playlist-section {
+      border-top: 1px solid rgb(228 228 231);
+      padding-top: 22px;
+      position: relative;
+      z-index: 1;
+    }
+    .dark .sidebar-playlist-section {
+      border-color: rgb(39 39 42);
+    }
     .history-track {
+      min-height: 56px;
       width: 100%;
+    }
+    .history-track .sidebar-time {
+      justify-self: end;
+      white-space: nowrap;
     }
     .echo-tooltip {
       opacity: 0;
@@ -382,8 +417,8 @@
       box-shadow: 0 18px 60px rgba(0, 0, 0, .24);
       color: rgb(24 24 27);
       display: none;
-      min-width: 180px;
-      padding: 6px;
+      min-width: 224px;
+      padding: 0;
       position: fixed;
       z-index: 1600;
     }
@@ -396,12 +431,15 @@
       display: block;
     }
     .track-context-menu-item {
-      border-radius: 6px;
-      display: block;
-      font-size: 14px;
-      font-weight: 650;
+      align-items: center;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 500;
       line-height: 1.35;
-      padding: 9px 10px;
+      min-height: 46px;
+      padding: 0 16px;
       text-align: left;
       width: 100%;
     }
@@ -416,6 +454,291 @@
     }
     .track-context-menu-item.is-danger {
       color: rgb(225 29 72);
+    }
+    .track-context-menu-icon {
+      display: grid;
+      height: 22px;
+      place-items: center;
+      width: 22px;
+      color: rgb(100 116 139);
+    }
+    .track-context-menu-icon svg {
+      height: 21px;
+      width: 21px;
+    }
+    .track-context-menu-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .track-context-menu-suffix {
+      color: rgb(148 163 184);
+      font-size: 18px;
+      line-height: 1;
+    }
+    .track-context-menu-separator {
+      height: 1px;
+      margin: 6px 12px;
+      background: rgb(229 231 235);
+    }
+    .dark .track-context-menu-separator {
+      background: rgb(63 63 70);
+    }
+    .track-context-submenu-wrap {
+      position: relative;
+    }
+    .track-context-submenu {
+      background: rgba(255, 255, 255, .98);
+      border: 1px solid rgb(228 228 231);
+      border-radius: 8px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .22);
+      display: none;
+      left: calc(100% + 8px);
+      max-height: min(420px, calc(100vh - 48px));
+      min-width: 268px;
+      overflow-y: auto;
+      padding: 6px 0;
+      position: absolute;
+      top: -6px;
+    }
+    .dark .track-context-submenu {
+      background: rgba(24, 24, 27, .98);
+      border-color: rgb(63 63 70);
+    }
+    .track-context-submenu-wrap::after {
+      content: "";
+      height: 100%;
+      left: 100%;
+      position: absolute;
+      top: 0;
+      width: 14px;
+    }
+    .track-context-submenu-wrap.is-submenu-open .track-context-submenu,
+    .track-context-submenu-wrap:focus-within .track-context-submenu {
+      display: block;
+    }
+    .track-context-playlist-target {
+      align-items: center;
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 12px;
+      min-height: 58px;
+      padding: 7px 14px;
+      text-align: left;
+      width: 100%;
+    }
+    .track-context-playlist-target:hover,
+    .track-context-playlist-target:focus-visible {
+      background: rgb(244 244 245);
+      outline: none;
+    }
+    .dark .track-context-playlist-target:hover,
+    .dark .track-context-playlist-target:focus-visible {
+      background: rgb(39 39 42);
+    }
+    .track-context-playlist-cover {
+      background: rgb(229 231 235);
+      border-radius: 10px;
+      display: grid;
+      height: 44px;
+      place-items: center;
+      width: 44px;
+      color: rgb(71 85 105);
+      font-weight: 800;
+    }
+
+    .playlist-song-row {
+      min-height: 82px;
+      position: relative;
+      user-select: none;
+    }
+    .playlist-song-row:hover,
+    .playlist-song-row.is-dragging {
+      background: rgba(255, 255, 255, .82);
+      box-shadow: 0 16px 44px rgba(15, 23, 42, .08);
+    }
+    .dark .playlist-song-row:hover,
+    .dark .playlist-song-row.is-dragging {
+      background: rgba(39, 39, 42, .82);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, .28);
+    }
+    .playlist-song-row:hover .playlist-row-number {
+      opacity: 0;
+    }
+    .playlist-song-row:hover .playlist-row-play {
+      display: grid;
+    }
+    .playlist-song-row:hover .playlist-row-actions,
+    .playlist-song-row:focus-within .playlist-row-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .playlist-row-action {
+      display: grid;
+      height: 34px;
+      place-items: center;
+      width: 34px;
+      border-radius: 999px;
+      color: rgb(113 113 122);
+      transition: background .16s ease, color .16s ease, transform .16s ease;
+    }
+    .playlist-row-action:hover,
+    .playlist-row-action:focus-visible {
+      background: rgb(244 244 245);
+      color: rgb(99 102 241);
+      outline: none;
+      transform: translateY(-1px);
+    }
+    .dark .playlist-row-action:hover,
+    .dark .playlist-row-action:focus-visible {
+      background: rgb(63 63 70);
+      color: white;
+    }
+    .playlist-song-row.is-drag-ready {
+      cursor: grab;
+    }
+    .playlist-song-row.is-dragging {
+      cursor: grabbing;
+      opacity: .82;
+    }
+    .playlist-song-row.is-drop-before {
+      box-shadow: inset 0 2px 0 rgb(99 102 241);
+    }
+    .playlist-song-row.is-drop-after {
+      box-shadow: inset 0 -2px 0 rgb(99 102 241);
+    }
+    .playlist-header-more {
+      align-items: center;
+      background: rgb(244 244 245);
+      border: 1px solid rgb(228 228 231);
+      border-radius: 12px;
+      color: rgb(71 85 105);
+      display: inline-flex;
+      height: 54px;
+      justify-content: center;
+      width: 54px;
+      transition: background .16s ease, color .16s ease, transform .16s ease;
+    }
+    .playlist-header-more:hover,
+    .playlist-header-more:focus-visible {
+      background: rgb(229 231 235);
+      color: rgb(15 23 42);
+      outline: none;
+      transform: translateY(-1px);
+    }
+    .dark .playlist-header-more {
+      background: rgb(39 39 42);
+      border-color: rgb(63 63 70);
+      color: rgb(203 213 225);
+    }
+    .playlist-tabs {
+      min-height: 40px;
+    }
+    .playlist-tab {
+      color: rgb(148 163 184);
+      padding-bottom: 8px;
+      position: relative;
+      transition: color .16s ease;
+    }
+    .playlist-tab sup {
+      font-size: 12px;
+      margin-left: 2px;
+    }
+    .playlist-tab.is-active {
+      color: rgb(30 41 59);
+    }
+    .dark .playlist-tab.is-active {
+      color: white;
+    }
+    .playlist-tab.is-active::after {
+      background: rgb(244 63 94);
+      border-radius: 999px;
+      bottom: 0;
+      content: "";
+      height: 4px;
+      left: 12px;
+      position: absolute;
+      right: 12px;
+    }
+    .playlist-tab-panel {
+      display: none;
+    }
+    .playlist-tab-panel.is-active {
+      display: block;
+    }
+    .playlist-title-cell {
+      overflow: hidden;
+    }
+    .playlist-row-actions {
+      max-width: 0;
+      overflow: hidden;
+    }
+    .playlist-song-row:hover .playlist-row-actions,
+    .playlist-song-row:focus-within .playlist-row-actions {
+      max-width: 172px;
+    }
+    .playlist-comment-compose {
+      border: 1px solid rgb(226 232 240);
+      border-radius: 14px;
+      margin-bottom: 28px;
+      padding: 22px 24px 16px;
+    }
+    .dark .playlist-comment-compose {
+      border-color: rgb(63 63 70);
+    }
+    .playlist-comment-compose textarea {
+      background: transparent;
+      min-height: 72px;
+      outline: none;
+      resize: none;
+      width: 100%;
+    }
+    .playlist-comments-flow,
+    .playlist-favorites-flow {
+      display: grid;
+      gap: 14px;
+    }
+    .playlist-favorite-user {
+      align-items: center;
+      border-radius: 12px;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 48px minmax(0, 1fr);
+      padding: 10px;
+      transition: background .16s ease;
+    }
+    .playlist-favorite-user:hover,
+    .playlist-favorite-user:focus-visible {
+      background: rgb(244 244 245);
+      outline: none;
+    }
+    .dark .playlist-favorite-user:hover,
+    .dark .playlist-favorite-user:focus-visible {
+      background: rgb(39 39 42);
+    }
+    .is-infinite-hidden {
+      display: none !important;
+    }
+    .playlist-load-more {
+      border: 1px solid rgb(226 232 240);
+      border-radius: 999px;
+      color: rgb(100 116 139);
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 18px auto 0;
+      padding: 10px 18px;
+      transition: border-color .16s ease, color .16s ease;
+    }
+    .playlist-load-more:hover,
+    .playlist-load-more:focus-visible {
+      border-color: rgb(99 102 241);
+      color: rgb(99 102 241);
+      outline: none;
+    }
+    .playlist-load-more.is-hidden {
+      display: none;
     }
 
 .avatar-crop-image {
@@ -756,6 +1079,16 @@
     }
     #left-sidebar.is-compact .library-create-label {
       display: none;
+    }
+    #left-sidebar.is-compact .history-track {
+      grid-template-columns: 44px minmax(0, 1fr);
+    }
+    #left-sidebar.is-compact .sidebar-time {
+      display: none;
+    }
+    #left-sidebar.is-compact .sidebar-body {
+      padding-left: 14px;
+      padding-right: 14px;
     }
     #content-grid.context-closed { column-gap: .5rem; }
     #content-grid.layout-has-left #left-sidebar {
