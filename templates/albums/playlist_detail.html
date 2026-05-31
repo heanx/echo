@@ -22,18 +22,38 @@
         </p>
         <p class="mt-4 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">{{ playlist.description|default:"这个歌单还没有简介。" }}</p>
       </div>
-      <div class="mt-8 flex flex-wrap items-center gap-4">
+      <div class="mt-8 flex flex-wrap items-center gap-3">
         <button type="button" class="rounded-lg bg-rose-500 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-600" data-playlist-play-all>
           <span aria-hidden="true">▶</span> 播放全部
         </button>
-        <button
-          type="button"
-          class="playlist-header-more"
-          data-copy-url="{{ request.build_absolute_uri }}"
-          title="更多"
-          aria-label="更多">
-          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
-        </button>
+        {% if playlist.visibility == "public" and not playlist.is_liked_playlist %}
+          {% include "albums/playlist_favorite_button.html" with playlist=playlist is_favorited=is_favorited %}
+        {% endif %}
+        <div class="playlist-header-menu-wrapper">
+          <button
+            type="button"
+            class="playlist-header-more"
+            data-playlist-menu-trigger
+            aria-expanded="false"
+            aria-haspopup="true"
+            title="更多"
+            aria-label="更多">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+          <div class="playlist-header-menu" data-playlist-menu>
+            <button type="button" class="playlist-header-menu-item" data-copy-link>
+              <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span>复制链接</span>
+            </button>
+            {% if request.user == playlist.creator and not playlist.is_liked_playlist %}
+            <div class="playlist-header-menu-separator"></div>
+            <button type="button" class="playlist-header-menu-item playlist-header-menu-item-danger" data-delete-playlist data-delete-url="{% url 'user_playlist_delete' playlist.creator.username playlist.pk %}">
+              <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>删除歌单</span>
+            </button>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
   </div>

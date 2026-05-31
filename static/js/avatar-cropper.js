@@ -1,4 +1,8 @@
 (function () {
+  if (window.EchoAvatarCropper && window.EchoAvatarCropper.loaded) {
+    if (typeof window.EchoAvatarCropper.init === "function") window.EchoAvatarCropper.init(document);
+    return;
+  }
   const defaultAllowedExtensions = new Set(["jpg", "jpeg", "png", "webp"]);
   const outputSize = 512;
   const initialZoom = 1.2;
@@ -240,6 +244,7 @@
   }
 
   function setupCropper(cropper) {
+    if (cropper.dataset.avatarCropperBound === "true") return null;
     const input = document.getElementById(cropper.dataset.inputId || "");
     if (!input) return null;
     const externalFrame = cropper.dataset.externalFrameId ? document.getElementById(cropper.dataset.externalFrameId) : null;
@@ -270,6 +275,7 @@
       dragY: 0,
     };
     if (!state.frame || !state.image || !state.zoomInput || !state.clearButton) return null;
+    cropper.dataset.avatarCropperBound = "true";
 
     input.addEventListener("change", function () {
       if (input.files && input.files[0]) setPreset(presetGroupForInput(input), "");
@@ -356,11 +362,17 @@
     return state;
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll("[data-avatar-form]").forEach(function (form) {
+  function initAvatarCroppers(root) {
+    const scope = root || document;
+    const forms = [];
+    if (scope.matches && scope.matches("[data-avatar-form]")) forms.push(scope);
+    scope.querySelectorAll("[data-avatar-form]").forEach(function (form) { forms.push(form); });
+    forms.forEach(function (form) {
+      if (form.dataset.avatarCropperFormBound === "true") return;
       const states = Array.from(form.querySelectorAll("[data-avatar-cropper]"))
         .map(setupCropper)
         .filter(Boolean);
+      form.dataset.avatarCropperFormBound = "true";
       form.addEventListener("submit", function (event) {
         const pending = states.filter(function (state) { return state.file; });
         if (!pending.length || form.dataset.avatarSubmitting === "true") return;
@@ -371,6 +383,21 @@
         });
       });
     });
+  }
+
+  window.EchoAvatarCropper = window.EchoAvatarCropper || {};
+  window.EchoAvatarCropper.init = initAvatarCroppers;
+  window.EchoAvatarCropper.loaded = true;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      initAvatarCroppers(document);
+    });
+  } else {
+    initAvatarCroppers(document);
+  }
+  document.addEventListener("htmx:afterSwap", function (event) {
+    initAvatarCroppers(event.target || document);
   });
   document.addEventListener("pointermove", function (event) {
     if (!activeDragState || !activeDragState.dragging) return;

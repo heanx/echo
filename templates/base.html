@@ -213,24 +213,6 @@
                         <span class="mt-0.5 block truncate create-menu-item-description text-xs">将好友的音乐喜好合并为一个歌单</span>
                       </span>
                     </a>
-                    <button type="button" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem">
-                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
-                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V6a2 2 0 0 1 2-2h5l2 3h5a2 2 0 0 1 2 2v11H4Z"/></svg>
-                      </span>
-                      <span class="min-w-0">
-                        <span class="block truncate text-sm font-bold">文件夹</span>
-                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">管理歌单</span>
-                      </span>
-                    </button>
-                    <a href="{% url 'lyrics:upload' %}" class="create-menu-item flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-white/10" role="menuitem" data-main-nav hx-get="{% url 'lyrics:upload' %}" hx-select="#main-content" hx-target="#main-content" hx-swap="outerHTML" hx-push-url="true">
-                      <span class="create-menu-item-icon grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-white">
-                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h12M4 13h16M4 17h10"/><path d="M18 14v6M15 17h6"/></svg>
-                      </span>
-                      <span class="min-w-0">
-                        <span class="block truncate text-sm font-bold">上传歌词</span>
-                        <span class="mt-0.5 block truncate create-menu-item-description text-xs">上传 LRC 或粘贴纯文本歌词</span>
-                      </span>
-                    </a>
                   </div>
                 </div>
               </div>
@@ -567,6 +549,12 @@
   <script>
     window.EchoConfig = JSON.parse(document.getElementById("echo-config").textContent);
   </script>
-  <script defer src="{% static 'js/echo-shell.js' %}?v=20260525-main-nav"></script>
+  <script defer src="{% static 'js/echo-shell-utils.js' %}?v=20260531-modules"></script>
+  <script defer src="{% static 'js/echo-shell-persist.js' %}?v=20260531-modules"></script>
+  <script defer src="{% static 'js/echo-shell-layout.js' %}?v=20260531-modules"></script>
+  <script defer src="{% static 'js/echo-shell-search.js' %}?v=20260531-modules"></script>
+  <script defer src="{% static 'js/echo-shell-navigation.js' %}?v=20260531-modules"></script>
+  <script defer src="{% static 'js/echo-shell-lyrics-theme.js' %}?v=20260531-modules"></script>
+  <script defer src="{% static 'js/echo-shell.js' %}?v=20260531-modules"></script>
 </body>
 </html>

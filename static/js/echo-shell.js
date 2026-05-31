@@ -1,4 +1,4 @@
-﻿    (function () {
+    (function () {
       const root = document.documentElement;
       function readEchoConfig() {
         if (window.EchoConfig) return window.EchoConfig;
@@ -92,8 +92,6 @@
       let lastLyricActiveIndex = -1;
       let lastUserScrollTime = 0;
       let lastAutoScrollTime = 0;
-      let activeResourceAbort = null;
-      let mainResourceRequestId = 0;
       let shuffleEnabled = false;
       let repeatMode = "all";
       let playQueue = [];
@@ -102,20 +100,22 @@
       let shufflePool = [];
       let playbackHistory = [];
       let lastPersistedPlaybackSecond = -1;
-      let searchSuggestAbort = null;
-      let searchSuggestTimer = 0;
-      let searchSuggestRequestId = 0;
       let trackLikeStatusRequestId = 0;
       let trackContextSubmenuCloseTimer = 0;
 
       var lyricDistClasses = ["lyric-dist-0", "lyric-dist-1", "lyric-dist-2", "lyric-dist-3", "lyric-dist-4", "lyric-dist-far"];
+      const shellUtils = window.EchoShellUtils;
+      const shellPersist = window.EchoShellPersist;
+      const clampNumber = shellUtils.clampNumber;
+      const formatTime = shellUtils.formatTime;
+      const normalizeRepeatMode = shellUtils.normalizeRepeatMode;
+      const normalizeTrack = shellUtils.normalizeTrack;
+      const queueDisplayName = shellUtils.queueDisplayName;
+      const queueIndexForTrack = shellUtils.queueIndexForTrack;
+      const repeatModeLabel = shellUtils.repeatModeLabel;
+      const readPersistedValue = shellPersist.read;
+      const writePersistedValue = shellPersist.write;
 
-      function formatTime(value) {
-        if (!Number.isFinite(value)) return "--:--";
-        const minutes = Math.floor(value / 60);
-        const seconds = Math.floor(value % 60).toString().padStart(2, "0");
-        return minutes + ":" + seconds;
-      }
       function showToast(message, tone) {
         if (!toastRegion || !message) return;
         const item = document.createElement("div");
@@ -177,14 +177,6 @@
         const tooltip = button.querySelector(".echo-tooltip");
         if (tooltip) tooltip.textContent = text;
       }
-      function repeatModeLabel(mode) {
-        if (mode === "off") return "顺序播放";
-        if (mode === "one") return "单曲循环";
-        return "列表循环";
-      }
-      function normalizeRepeatMode(mode) {
-        return mode === "one" || mode === "off" || mode === "all" ? mode : "all";
-      }
       function persistPlaybackModes() {
         writePersistedValue("echo_shuffle_enabled", shuffleEnabled ? "true" : "false");
         writePersistedValue("echo_repeat_mode", repeatMode);
@@ -196,35 +188,6 @@
         lastPersistedPlaybackSecond = currentSecond;
         writePersistedValue("echo_current_track_id", currentTrackId);
         writePersistedValue("echo_player_time", currentSecond);
-      }
-      function normalizeTrack(track) {
-        if (!track || !track.id) return null;
-        return {
-          src: track.src || "",
-          id: String(track.id),
-          title: track.title || "",
-          artist: track.artist || "",
-          cover: track.cover || "summer",
-          coverUrl: track.coverUrl || "",
-        };
-      }
-      function queueIndexForTrack(queue, trackId) {
-        return queue.findIndex(function (item) {
-          return item && String(item.id) === String(trackId);
-        });
-      }
-      function queueDisplayName(name) {
-        if (!name) return "默认播放队列";
-        if (name === "sidebar-playlist") return "默认播放队列";
-        if (name === "recent-tracks") return "最近播放";
-        if (name === "recommended-tracks") return "首页推荐";
-        if (name === "latest-tracks") return "最新音乐";
-        if (name === "search-tracks") return "搜索结果";
-        if (name === "track-detail") return "作品详情";
-        if (name === "profile-tracks") return "个人主页";
-        if (name.indexOf("playlist-") === 0) return "歌单";
-        if (name === "hero-track") return "首页主打";
-        return name.replace(/[-_]+/g, " ");
       }
       function renderPlayQueue() {
         if (!playlistTrackList) return;
@@ -472,44 +435,6 @@
       function setPlaying(playing) {
         playIcon.classList.toggle("hidden", playing);
         pauseIcon.classList.toggle("hidden", !playing);
-      }
-      function getCookie(name) {
-        const cookies = document.cookie ? document.cookie.split(";") : [];
-        for (let index = 0; index < cookies.length; index += 1) {
-          const cookie = cookies[index].trim();
-          if (cookie.startsWith(name + "=")) return decodeURIComponent(cookie.slice(name.length + 1));
-        }
-        return "";
-      }
-      function setCookie(name, value, maxAgeSeconds) {
-        var cookie = name + "=" + encodeURIComponent(value) + "; path=/; SameSite=Lax";
-        if (Number.isFinite(maxAgeSeconds) && maxAgeSeconds > 0) {
-          cookie += "; max-age=" + Math.round(maxAgeSeconds);
-        }
-        document.cookie = cookie;
-      }
-      function readPersistedValue(key, fallback) {
-        var stored = "";
-        try {
-          stored = localStorage.getItem(key) || "";
-        } catch (_error) {}
-        if (stored) return stored;
-        var cookieValue = getCookie(key);
-        if (cookieValue) return cookieValue;
-        return fallback;
-      }
-      function writePersistedValue(key, value, maxAgeSeconds) {
-        try {
-          if (value === undefined || value === null || value === "") {
-            localStorage.removeItem(key);
-            setCookie(key, "", 0);
-            return;
-          }
-          localStorage.setItem(key, String(value));
-        } catch (_error) {}
-        if (value !== undefined && value !== null && value !== "") {
-          setCookie(key, String(value), maxAgeSeconds || 31536000);
-        }
       }
       shuffleEnabled = readPersistedValue("echo_shuffle_enabled", "false") === "true";
       repeatMode = normalizeRepeatMode(readPersistedValue("echo_repeat_mode", "all") || "all");
@@ -968,400 +893,75 @@
         var hasLyrics = main.querySelector("[data-echo-resource='lyrics']");
         main.classList.toggle("lyrics-scroll", Boolean(hasLyrics));
       }
-      function clampChannel(value) {
-        return Math.max(0, Math.min(255, Math.round(value)));
-      }
-      function rgbToCss(rgb) {
-        return "rgb(" + rgb[0] + ", " + rgb[1] + ", " + rgb[2] + ")";
-      }
-      function coverColorCacheKey(imageUrl) {
-        return "echo_cover_color:" + imageUrl;
-      }
-      function readCachedCoverColor(imageUrl) {
-        if (!imageUrl) return null;
-        try {
-          var cached = localStorage.getItem(coverColorCacheKey(imageUrl));
-          if (!cached) return null;
-          var parsed = JSON.parse(cached);
-          if (!Array.isArray(parsed) || parsed.length !== 3) return null;
-          return parsed.map(clampChannel);
-        } catch (error) {
-          return null;
-        }
-      }
-      function writeCachedCoverColor(imageUrl, rgb) {
-        if (!imageUrl || !rgb) return;
-        try {
-          localStorage.setItem(coverColorCacheKey(imageUrl), JSON.stringify(rgb.map(clampChannel)));
-        } catch (error) {}
-      }
-      function mixRgb(rgb, target, amount) {
-        return [
-          clampChannel(rgb[0] + (target[0] - rgb[0]) * amount),
-          clampChannel(rgb[1] + (target[1] - rgb[1]) * amount),
-          clampChannel(rgb[2] + (target[2] - rgb[2]) * amount),
-        ];
-      }
-      function themeBaseColor(themeName) {
-        return coverThemeColors[themeName] || coverThemeColors.summer;
-      }
-      function applyLyricsPanelTheme(panel, rgb) {
-        if (!panel || !rgb) return;
-        var isDark = root.classList.contains("dark");
-        var adjusted = isDark ? mixRgb(rgb, [0, 0, 0], 0.10) : mixRgb(rgb, [255, 255, 255], 0.10);
-        var deep = mixRgb(adjusted, isDark ? [0, 0, 0] : [255, 255, 255], isDark ? 0.24 : 0.16);
-        panel.style.setProperty("--lyrics-surface", rgbToCss(adjusted));
-        panel.style.setProperty("--lyrics-surface-soft", rgbToCss(deep));
-      }
-      function readImageDominantColor(imageUrl) {
-        return new Promise(function (resolve, reject) {
-          if (!imageUrl) {
-            reject(new Error("missing image"));
-            return;
-          }
-          var image = new Image();
-          image.crossOrigin = "anonymous";
-          image.onload = function () {
-            try {
-              var canvas = document.createElement("canvas");
-              var context = canvas.getContext("2d", { willReadFrequently: true });
-              var width = Math.max(1, Math.min(32, image.naturalWidth || image.width));
-              var height = Math.max(1, Math.min(32, image.naturalHeight || image.height));
-              canvas.width = width;
-              canvas.height = height;
-              context.drawImage(image, 0, 0, width, height);
-              var data = context.getImageData(0, 0, width, height).data;
-              var red = 0;
-              var green = 0;
-              var blue = 0;
-              var count = 0;
-              for (var index = 0; index < data.length; index += 4) {
-                var alpha = data[index + 3];
-                if (alpha < 32) continue;
-                red += data[index];
-                green += data[index + 1];
-                blue += data[index + 2];
-                count += 1;
-              }
-              if (!count) {
-                reject(new Error("empty image"));
-                return;
-              }
-              resolve([
-                clampChannel(red / count),
-                clampChannel(green / count),
-                clampChannel(blue / count),
-              ]);
-            } catch (error) {
-              reject(error);
-            }
-          };
-          image.onerror = function () {
-            reject(new Error("image load failed"));
-          };
-          image.src = imageUrl;
-        });
-      }
-      function syncLyricsPanelTheme() {
-        var panel = document.querySelector(".lyrics-panel[data-echo-resource='lyrics']");
-        if (!panel) return;
-        var fallback = themeBaseColor(panel.dataset.coverTheme || "summer");
-        applyLyricsPanelTheme(panel, fallback);
-        var coverUrl = panel.dataset.coverUrl || "";
-        if (!coverUrl) return;
-        var cached = readCachedCoverColor(coverUrl);
-        if (cached) {
-          applyLyricsPanelTheme(panel, cached);
-        }
-        readImageDominantColor(coverUrl)
-          .then(function (rgb) {
-            writeCachedCoverColor(coverUrl, rgb);
-            applyLyricsPanelTheme(panel, rgb);
-          })
-          .catch(function () {
-            applyLyricsPanelTheme(panel, cached || fallback);
-          });
-      }
-      function cancelActiveResourceLoad() {
-        mainResourceRequestId += 1;
-        if (activeResourceAbort) {
-          activeResourceAbort.abort();
-          activeResourceAbort = null;
-        }
-      }
-      function extractMainContent(doc) {
-        const shellMain = doc.querySelector("#echo-shell #content-grid > section > #main-content");
-        const nextMain = shellMain || doc.querySelector("#main-content");
-        if (!nextMain) return null;
+      const lyricsTheme = window.EchoShellLyricsTheme.create({
+        root: root,
+        coverThemeColors: coverThemeColors,
+      });
+      const syncLyricsPanelTheme = lyricsTheme.sync;
 
-        const cleanMain = nextMain.cloneNode(true);
-        cleanMain.querySelectorAll("#echo-shell, #content-grid, #main-content").forEach(function (node) {
-          if (node !== cleanMain) node.remove();
-        });
-        return cleanMain;
-      }
-      function loadMainResource(resourceName, trackId) {
-        if (!resourceName || !trackId) return;
-        cancelActiveResourceLoad();
-        const baseUrl = resourceName === "comments" ? echoConfig.commentsUrl : echoConfig.lyricsUrl;
-        const url = baseUrl + "?track=" + encodeURIComponent(trackId);
-        const controller = new AbortController();
-        const requestId = mainResourceRequestId;
-        activeResourceAbort = controller;
-        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" }, signal: controller.signal })
-          .then(function (response) { return response.text(); })
-          .then(function (html) {
-            if (controller.signal.aborted) return;
-            if (requestId !== mainResourceRequestId) return;
-            if (String(currentTrackId) !== String(trackId)) return;
-            const doc = new DOMParser().parseFromString(html, "text/html");
-            const nextMain = extractMainContent(doc);
-            const currentMain = document.getElementById("main-content");
-            if (nextMain && currentMain) {
-              currentMain.outerHTML = nextMain.outerHTML;
-              syncMainResourceState();
-              syncLyricsPanelTheme();
-              history.pushState({}, "", url);
-            }
-          })
-          .catch(function (error) {
-            if (error && error.name === "AbortError") return;
-            showToast("内容加载失败，请稍后再试。", "error");
-          })
-          .finally(function () {
-            if (activeResourceAbort === controller) activeResourceAbort = null;
-          });
-      }
-      function refreshActiveResource(trackId) {
-        if (!trackId) return;
-        const activeResource = document.querySelector("#main-content [data-echo-resource]");
-        if (!activeResource) return;
-        loadMainResource(activeResource.dataset.echoResource, trackId);
-      }
-      function mainContentHasDirtyForm() {
-        const dirtyForms = document.querySelectorAll("#main-content form[data-echo-dirty='true']");
-        return Array.from(dirtyForms).some(function (form) {
-          return Array.from(form.elements).some(function (field) {
-            if (!field.name || field.disabled) return false;
-            if (field.type === "hidden" || field.type === "submit" || field.type === "button") return false;
-            if (field.type === "file") return field.files && field.files.length > 0;
-            if (field.type === "checkbox" || field.type === "radio") return field.checked;
-            return String(field.value || "").trim().length > 0;
-          });
-        });
-      }
-      function clearMainContentDirtyState() {
-        document.querySelectorAll("#main-content form[data-echo-dirty='true']").forEach(function (form) {
-          form.dataset.echoDirty = "false";
-        });
-      }
-      function applyMainContentSwap(html, url) {
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const nextMain = extractMainContent(doc);
-        const currentMain = document.getElementById("main-content");
-        if (!nextMain || !currentMain) return false;
-        currentMain.outerHTML = nextMain.outerHTML;
-        clearMainContentDirtyState();
-        syncMainResourceState();
-        syncLyricsPanelTheme();
-        initPlaylistTabs(document);
-        initInfiniteLists(document);
-        if (url) history.pushState({}, "", url);
-        return true;
-      }
-      function loadMainContentUrl(url) {
-        if (!url) return false;
-        if (mainContentHasDirtyForm()) {
-          const ok = window.confirm("当前页面有未保存的编辑内容，确定要离开吗？");
-          if (!ok) return false;
-        }
-        setCreateMenu(false);
-        setAccountMenu(false);
-        hideTopSearchSuggestions();
-        cancelActiveResourceLoad();
-        fetch(url, { cache: "no-store", headers: { "HX-Request": "true" } })
-          .then(function (response) {
-            if (!response.ok) throw new Error("main navigation failed");
-            return response.text();
-          })
-          .then(function (html) {
-            if (!applyMainContentSwap(html, url)) window.location.href = url;
-          })
-          .catch(function () {
-            showToast("内容加载失败，已切换为完整页面。", "error");
-            window.location.href = url;
-          });
-        return false;
-      }
-      function urlFromMainNavForm(form) {
-        const action = form.getAttribute("action") || window.location.pathname;
-        const method = (form.getAttribute("method") || "get").toLowerCase();
-        if (method !== "get") return "";
-        const url = new URL(action, window.location.origin);
-        const params = new URLSearchParams(new FormData(form));
-        url.search = params.toString();
-        return url.pathname + url.search + url.hash;
-      }
-      function resetMainContentToHome() {
-        if (mainContentHasDirtyForm()) {
-          const ok = window.confirm("当前页面有未保存的编辑内容，确定要回到首页吗？");
-          if (!ok) return false;
-        }
-        setCreateMenu(false);
-        fetch(echoConfig.homeUrl, { cache: "no-store", headers: { "HX-Request": "true" } })
-          .then(function (response) { return response.text(); })
-          .then(function (html) {
-            const doc = new DOMParser().parseFromString(html, "text/html");
-            const nextMain = doc.querySelector("#main-content");
-            const currentMain = document.getElementById("main-content");
-            if (!nextMain || !currentMain) {
-              window.location.href = echoConfig.homeUrl;
-              return;
-            }
-            applyMainContentSwap(html, echoConfig.homeUrl);
-          })
-          .catch(function () {
-            showToast("首页加载失败，已为你切回完整页面。", "error");
-            window.location.href = echoConfig.homeUrl;
-          });
-        return false;
-      }
+      const shellNavigation = window.EchoShellNavigation.create({
+        echoConfig: echoConfig,
+        getCurrentTrackId: function () { return currentTrackId; },
+        showToast: showToast,
+        closeMenus: function () {
+          setCreateMenu(false);
+          setAccountMenu(false);
+          hideTopSearchSuggestions();
+        },
+        afterSwap: function () {
+          syncMainResourceState();
+          syncLyricsPanelTheme();
+          initPlaylistTabs(document);
+          initInfiniteLists(document);
+        },
+        afterResourceSwap: function () {},
+      });
+      const cancelActiveResourceLoad = shellNavigation.cancelActiveResourceLoad;
+      const loadMainContentUrl = shellNavigation.loadMainContentUrl;
+      const loadMainResource = shellNavigation.loadMainResource;
+      const refreshActiveResource = shellNavigation.refreshActiveResource;
+      const resetMainContentToHome = shellNavigation.resetMainContentToHome;
+      const urlFromMainNavForm = shellNavigation.urlFromMainNavForm;
+
+      const shellLayout = window.EchoShellLayout.create({
+        root: root,
+        shell: shell,
+        leftSidebar: leftSidebar,
+        contextPanel: contextPanel,
+        openPlaylist: openPlaylist,
+        libraryTrigger: libraryTrigger,
+        libraryCreate: libraryCreate,
+        libraryCreateButton: libraryCreateButton,
+        libraryCreateMenu: libraryCreateMenu,
+        accountMenu: accountMenu,
+        accountMenuTrigger: accountMenuTrigger,
+        accountMenuPanel: accountMenuPanel,
+        topBar: topBar,
+        topSearchWrap: topSearchWrap,
+        playbackBar: playbackBar,
+        playbackControls: playbackControls,
+        playbackActions: playbackActions,
+        currentContextView: currentContextView,
+        isContextCollapsed: isContextCollapsed,
+      });
+      const applyContext = shellLayout.applyContext;
+      const applySidebar = shellLayout.applySidebar;
+      const closeAllPlaylistMenus = shellLayout.closeAllPlaylistMenus;
+      const positionCreateMenu = shellLayout.positionCreateMenu;
+      const queuePlaybackLayout = shellLayout.queuePlaybackLayout;
+      const queueTopSearchLayout = shellLayout.queueTopSearchLayout;
+      const setAccountMenu = shellLayout.setAccountMenu;
+      const setCreateMenu = shellLayout.setCreateMenu;
+      const togglePlaylistMenu = shellLayout.togglePlaylistMenu;
+      const updateShellLayout = shellLayout.updateShellLayout;
+      const updateTooltipDirection = shellLayout.updateTooltipDirection;
+
       function applyTheme(theme) {
         var normalizedTheme = theme === "light" ? "light" : "dark";
         root.classList.toggle("dark", normalizedTheme !== "light");
         root.dataset.echoTheme = normalizedTheme;
         writePersistedValue("echo_theme", normalizedTheme);
         syncLyricsPanelTheme();
-      }
-      function clampNumber(value, min, max) {
-        return Math.max(min, Math.min(max, value));
-      }
-      function updateShellLayout() {
-        if (!shell || !leftSidebar || !contextPanel) return;
-        const viewportWidth = document.documentElement.clientWidth;
-        const sidebarCollapsed = localStorage.getItem("echo_sidebar_collapsed") === "true";
-        const contextWanted = true;
-        const contextCollapsed = isContextCollapsed();
-        const showLeft = viewportWidth >= 760;
-        const leftWidth = showLeft
-          ? (sidebarCollapsed ? 76 : Math.round(clampNumber(viewportWidth * 0.22, 248, 320)))
-          : 0;
-        const roomAfterLeft = viewportWidth - leftWidth;
-        const rightCandidate = contextCollapsed ? 76 : Math.round(clampNumber(viewportWidth * 0.2, 248, 360));
-        const showContext = contextWanted && showLeft && roomAfterLeft - rightCandidate >= 560;
-        const rightWidth = showContext ? rightCandidate : 0;
-        shell.style.setProperty("--left-width", leftWidth + "px");
-        shell.style.setProperty("--right-width", rightWidth + "px");
-        shell.style.gridTemplateColumns = [
-          showLeft ? "var(--left-width)" : "",
-          "minmax(0, 1fr)",
-          showContext ? "var(--right-width)" : "",
-        ].filter(Boolean).join(" ");
-        shell.classList.toggle("layout-has-left", showLeft);
-        shell.classList.toggle("layout-no-left", !showLeft);
-        shell.classList.toggle("layout-has-context", showContext);
-        shell.classList.toggle("layout-no-context", !showContext);
-        shell.classList.toggle("context-closed", !showContext);
-        leftSidebar.classList.toggle("is-compact", showLeft && !sidebarCollapsed && leftWidth < 280);
-        contextPanel.style.display = showContext ? "" : "none";
-        if (openPlaylist) {
-          openPlaylist.setAttribute("aria-pressed", showContext ? "true" : "false");
-          openPlaylist.classList.toggle("text-brand", showContext && currentContextView() === "playlist");
-        }
-      }
-      function applySidebar(collapsed) {
-        leftSidebar.classList.toggle("is-collapsed", collapsed);
-        if (libraryTrigger) libraryTrigger.setAttribute("aria-label", collapsed ? "展开音乐库" : "音乐库");
-        localStorage.setItem("echo_sidebar_collapsed", collapsed ? "true" : "false");
-        updateShellLayout();
-        queueTopSearchLayout();
-      }
-      function setCreateMenu(open) {
-        if (!libraryCreate || !libraryCreateButton) return;
-        libraryCreate.classList.toggle("is-open", open);
-        leftSidebar.classList.toggle("create-open", open);
-        libraryCreateButton.setAttribute("aria-expanded", open ? "true" : "false");
-        if (open) positionCreateMenu();
-      }
-      function setAccountMenu(open) {
-        if (!accountMenu || !accountMenuTrigger || !accountMenuPanel) return;
-        accountMenu.classList.toggle("is-open", open);
-        accountMenuTrigger.setAttribute("aria-expanded", open ? "true" : "false");
-      }
-      function positionCreateMenu() {
-        if (!libraryCreateButton || !libraryCreateMenu) return;
-        const gap = 12;
-        const margin = 12;
-        const preferredWidth = 420;
-        const buttonRect = libraryCreateButton.getBoundingClientRect();
-        const sidebarRect = leftSidebar.getBoundingClientRect();
-        const viewportWidth = document.documentElement.clientWidth;
-        const menuWidth = Math.min(preferredWidth, Math.max(280, viewportWidth - margin * 2));
-        const isCollapsed = leftSidebar.classList.contains("is-collapsed");
-        const rightOpeningLeft = (isCollapsed ? sidebarRect.right : buttonRect.right) + gap;
-        const rightOpeningFits = rightOpeningLeft + menuWidth <= viewportWidth - margin;
-        const left = rightOpeningFits
-          ? rightOpeningLeft
-          : Math.max(margin, Math.min(sidebarRect.right - menuWidth, viewportWidth - menuWidth - margin));
-        libraryCreateMenu.style.setProperty("--create-menu-left", Math.round(left) + "px");
-        libraryCreateMenu.style.setProperty("--create-menu-top", Math.round(buttonRect.bottom + gap) + "px");
-        libraryCreateMenu.style.setProperty("--create-menu-width", Math.round(menuWidth) + "px");
-      }
-      function applyContext(open) {
-        localStorage.setItem("echo_context_panel_open", "true");
-        updateShellLayout();
-        queueTopSearchLayout();
-      }
-      function updateTopSearchLayout() {
-        if (!topBar || !topSearchWrap) return;
-        const gap = 16;
-        const barRect = topBar.getBoundingClientRect();
-        const logoRect = topBar.firstElementChild.getBoundingClientRect();
-        const actionsRect = topBar.lastElementChild.getBoundingClientRect();
-        const wrapLeft = barRect.left + topSearchWrap.offsetLeft;
-        const wrapWidth = topSearchWrap.offsetWidth;
-        const clusterWidth = Math.min(720, wrapWidth);
-        const centerX = barRect.left + barRect.width / 2;
-        const wrapCenterX = wrapLeft + wrapWidth / 2;
-        const desiredShift = centerX - wrapCenterX;
-        const minShift = logoRect.right + gap - (wrapCenterX - clusterWidth / 2);
-        const maxShift = actionsRect.left - gap - (wrapCenterX + clusterWidth / 2);
-        const shift = minShift <= maxShift ? clampNumber(desiredShift, minShift, maxShift) : 0;
-        topSearchWrap.style.setProperty("--top-search-shift", Math.round(shift) + "px");
-      }
-      function queueTopSearchLayout() {
-        requestAnimationFrame(function () {
-          updateTopSearchLayout();
-          requestAnimationFrame(updateTopSearchLayout);
-        });
-      }
-      function updatePlaybackLayout() {
-        if (!playbackBar || !playbackControls) return;
-        const controlsWidth = playbackControls.offsetWidth;
-        const viewportWidth = document.documentElement.clientWidth;
-        const progressPadding = viewportWidth < 640 ? 12 : 88;
-        const progressWidth = clampNumber(Math.round(controlsWidth - progressPadding), 128, 520);
-        const actionWidth = playbackActions ? playbackActions.offsetWidth : 0;
-        const volumeWidth = clampNumber(Math.round(actionWidth * 0.32), 56, 128);
-        playbackBar.style.setProperty("--player-progress-width", progressWidth + "px");
-        playbackBar.style.setProperty("--player-volume-width", volumeWidth + "px");
-      }
-      function queuePlaybackLayout() {
-        requestAnimationFrame(function () {
-          updatePlaybackLayout();
-          requestAnimationFrame(updatePlaybackLayout);
-        });
-      }
-      function updateTooltipDirection(trigger) {
-        const tooltip = trigger.querySelector(".echo-tooltip");
-        if (!tooltip) return;
-        trigger.classList.remove("tooltip-flip-left");
-        const margin = 8;
-        const viewportWidth = document.documentElement.clientWidth;
-        const rect = tooltip.getBoundingClientRect();
-        if (rect.right > viewportWidth - margin) {
-          trigger.classList.add("tooltip-flip-left");
-        }
       }
       function selectTrack(track) {
         if (!track) return;
@@ -1777,184 +1377,15 @@
         });
       }
 
-      function searchUrlFor(query) {
-        var params = new URLSearchParams();
-        params.set("q", query || "");
-        return (echoConfig.searchUrl || "/search/") + "?" + params.toString();
-      }
-      function showTopSearchSuggestions() {
-        if (!topSearchSuggestions) return;
-        topSearchSuggestions.classList.remove("hidden");
-        if (topSearchInput) topSearchInput.setAttribute("aria-expanded", "true");
-      }
-      function hideTopSearchSuggestions() {
-        if (!topSearchSuggestions) return;
-        topSearchSuggestions.classList.add("hidden");
-        if (topSearchInput) topSearchInput.setAttribute("aria-expanded", "false");
-      }
-      function syncTopSearchClear() {
-        if (!topSearchClear || !topSearchInput) return;
-        topSearchClear.classList.toggle("hidden", !topSearchInput.value.trim());
-        topSearchClear.classList.toggle("grid", Boolean(topSearchInput.value.trim()));
-      }
-      function appendSuggestionIcon(parent) {
-        var icon = document.createElement("span");
-        icon.className = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300";
-        icon.innerHTML = '<svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
-        parent.appendChild(icon);
-      }
-      function appendTrackCover(parent, track) {
-        var coverNode = document.createElement("span");
-        coverNode.className = "grid h-12 w-12 shrink-0 place-items-center rounded bg-cover bg-center text-white";
-        if (track.cover_url) {
-          coverNode.style.backgroundImage = 'url("' + track.cover_url + '")';
-        } else {
-          coverNode.classList.add("cover-" + (track.cover_theme || "summer"));
-        }
-        parent.appendChild(coverNode);
-      }
-      function renderTopSearchSuggestions(payload) {
-        if (!topSearchSuggestions || !topSearchInput) return;
-        var query = (payload && payload.query) || topSearchInput.value.trim();
-        topSearchSuggestions.replaceChildren();
-
-        var header = document.createElement("div");
-        header.className = "mb-1 flex items-center justify-between gap-3 px-2 py-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400";
-        var browse = document.createElement("span");
-        browse.textContent = "浏览";
-        var submitHint = document.createElement("span");
-        submitHint.className = "rounded border border-zinc-300 px-1.5 py-0.5 dark:border-zinc-700";
-        submitHint.textContent = "回车搜索";
-        header.append(browse, submitHint);
-        topSearchSuggestions.appendChild(header);
-
-        var hasContent = false;
-        (payload.suggestions || []).forEach(function (suggestion) {
-          hasContent = true;
-          var link = document.createElement("a");
-          link.className = "flex items-center gap-4 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
-          link.href = searchUrlFor(suggestion);
-          link.dataset.mainNav = "";
-          appendSuggestionIcon(link);
-          var text = document.createElement("span");
-          text.className = "min-w-0 truncate text-base font-bold";
-          text.textContent = suggestion;
-          link.appendChild(text);
-          topSearchSuggestions.appendChild(link);
-        });
-
-        (payload.tracks || []).forEach(function (track) {
-          hasContent = true;
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "group grid w-full grid-cols-[48px_minmax(0,1fr)_32px] items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
-          button.dataset.echoTrack = "";
-          button.dataset.id = track.id || "";
-          button.dataset.src = track.audio_url || "";
-          button.dataset.title = track.title || "";
-          button.dataset.artist = track.artist || "Echo 用户";
-          button.dataset.cover = track.cover_theme || "summer";
-          button.dataset.coverUrl = track.cover_url || "";
-          appendTrackCover(button, track);
-          var meta = document.createElement("span");
-          meta.className = "min-w-0";
-          var title = document.createElement("span");
-          title.className = "block truncate text-base font-bold";
-          title.textContent = track.title || "未命名音频";
-          var artist = document.createElement("span");
-          artist.className = "block truncate text-sm text-zinc-500 dark:text-zinc-400";
-          artist.textContent = "歌曲 · " + (track.artist || "Echo 用户");
-          meta.append(title, artist);
-          var plus = document.createElement("span");
-          plus.className = "grid h-8 w-8 place-items-center rounded-full text-zinc-500 transition group-hover:bg-zinc-200 group-hover:text-zinc-950 dark:group-hover:bg-zinc-700 dark:group-hover:text-white";
-          plus.innerHTML = '<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>';
-          button.append(meta, plus);
-          topSearchSuggestions.appendChild(button);
-        });
-
-        (payload.playlists || []).forEach(function (playlist) {
-          hasContent = true;
-          var link = document.createElement("a");
-          link.className = "group grid w-full grid-cols-[48px_minmax(0,1fr)_32px] items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
-          link.href = playlist.url || searchUrlFor(query);
-          link.dataset.mainNav = "";
-          var coverNode = document.createElement("span");
-          coverNode.className = "grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-cover bg-center text-white";
-          if (playlist.cover_url) {
-            coverNode.style.backgroundImage = 'url("' + playlist.cover_url + '")';
-          } else {
-            coverNode.classList.add("cover-" + (playlist.cover_theme || "eclipse"));
-            coverNode.textContent = "♫";
-          }
-          var meta = document.createElement("span");
-          meta.className = "min-w-0";
-          var playlistTitle = document.createElement("span");
-          playlistTitle.className = "block truncate text-base font-bold";
-          playlistTitle.textContent = playlist.title || "未命名歌单";
-          var playlistMeta = document.createElement("span");
-          playlistMeta.className = "block truncate text-sm text-zinc-500 dark:text-zinc-400";
-          playlistMeta.textContent = "歌单 · " + (playlist.creator || "Echo 用户") + " · " + (playlist.track_count || 0) + " 首";
-          meta.append(playlistTitle, playlistMeta);
-          var arrow = document.createElement("span");
-          arrow.className = "grid h-8 w-8 place-items-center rounded-full text-zinc-500 transition group-hover:bg-zinc-200 group-hover:text-zinc-950 dark:group-hover:bg-zinc-700 dark:group-hover:text-white";
-          arrow.innerHTML = '<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>';
-          link.append(coverNode, meta, arrow);
-          topSearchSuggestions.appendChild(link);
-        });
-
-        if (!hasContent && query) {
-          var empty = document.createElement("a");
-          empty.className = "flex items-center gap-4 rounded-lg px-3 py-3 transition hover:bg-zinc-100 dark:hover:bg-zinc-800";
-          empty.href = searchUrlFor(query);
-          empty.dataset.mainNav = "";
-          appendSuggestionIcon(empty);
-          var emptyText = document.createElement("span");
-          var emptyTitle = document.createElement("span");
-          emptyTitle.className = "block font-bold";
-          emptyTitle.textContent = query;
-          var emptyMeta = document.createElement("span");
-          emptyMeta.className = "block text-sm text-zinc-500 dark:text-zinc-400";
-          emptyMeta.textContent = "查看完整搜索结果";
-          emptyText.append(emptyTitle, emptyMeta);
-          empty.appendChild(emptyText);
-          topSearchSuggestions.appendChild(empty);
-        }
-        showTopSearchSuggestions();
-      }
-      function requestTopSearchSuggestions() {
-        if (!topSearchInput || !topSearchSuggestions) return;
-        syncTopSearchClear();
-        var query = topSearchInput.value.trim();
-        if (!query) {
-          hideTopSearchSuggestions();
-          topSearchSuggestions.replaceChildren();
-          return;
-        }
-        window.clearTimeout(searchSuggestTimer);
-        searchSuggestTimer = window.setTimeout(function () {
-          var requestId = ++searchSuggestRequestId;
-          if (searchSuggestAbort) searchSuggestAbort.abort();
-          searchSuggestAbort = new AbortController();
-          var url = (echoConfig.searchSuggestUrl || "/search/suggest/") + "?q=" + encodeURIComponent(query);
-          fetch(url, {
-            credentials: "same-origin",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-            signal: searchSuggestAbort.signal,
-          })
-            .then(function (response) {
-              if (!response.ok) throw new Error("suggest failed");
-              return response.json();
-            })
-            .then(function (payload) {
-              if (requestId !== searchSuggestRequestId) return;
-              renderTopSearchSuggestions(payload || { query: query, suggestions: [], tracks: [] });
-            })
-            .catch(function (error) {
-              if (error && error.name === "AbortError") return;
-              renderTopSearchSuggestions({ query: query, suggestions: [], tracks: [] });
-            });
-        }, 140);
-      }
+      const shellSearch = window.EchoShellSearch.create({
+        echoConfig: echoConfig,
+        topSearchInput: topSearchInput,
+        topSearchClear: topSearchClear,
+        topSearchSuggestions: topSearchSuggestions,
+      });
+      const hideTopSearchSuggestions = shellSearch.hide;
+      const requestTopSearchSuggestions = shellSearch.request;
+      const syncTopSearchClear = shellSearch.syncClear;
 
       document.addEventListener("click", function (event) {
         const homeTrigger = event.target.closest("[data-home-nav]");
@@ -2132,6 +1563,14 @@
       document.addEventListener("click", function (event) {
         if (libraryCreate && !libraryCreate.contains(event.target)) setCreateMenu(false);
         if (accountMenu && !accountMenu.contains(event.target)) setAccountMenu(false);
+        document.querySelectorAll(".playlist-header-menu-wrapper").forEach(function (wrapper) {
+          if (!wrapper.contains(event.target)) {
+            var menu = wrapper.querySelector("[data-playlist-menu]");
+            var trigger = wrapper.querySelector("[data-playlist-menu-trigger]");
+            if (menu) menu.classList.remove("is-open");
+            if (trigger) trigger.setAttribute("aria-expanded", "false");
+          }
+        });
         if (topSearchSuggestions && topSearchForm && !topSearchForm.contains(event.target) && !topSearchSuggestions.contains(event.target)) {
           hideTopSearchSuggestions();
         }
@@ -2140,6 +1579,7 @@
         if (event.key === "Escape") {
           setCreateMenu(false);
           setAccountMenu(false);
+          closeAllPlaylistMenus();
           hideTopSearchSuggestions();
         }
       });
@@ -2325,6 +1765,16 @@
       });
       document.body.addEventListener("click", function (event) {
         if (!event.target.closest("#echo-track-context-menu")) hideTrackContextMenu();
+
+        const playlistMenuTrigger = event.target.closest("[data-playlist-menu-trigger]");
+        if (playlistMenuTrigger) {
+          event.preventDefault();
+          event.stopPropagation();
+          var wrapper = playlistMenuTrigger.closest(".playlist-header-menu-wrapper");
+          if (wrapper) togglePlaylistMenu(wrapper);
+          return;
+        }
+
         const likeButton = event.target.closest("[data-comment-like]");
         if (likeButton) {
           event.preventDefault();
@@ -2351,6 +1801,33 @@
         if (copyUrlButton) {
           event.preventDefault();
           copyTextToClipboard(copyUrlButton.dataset.copyUrl || window.location.href, "歌单链接已复制。");
+          return;
+        }
+
+        const copyLinkButton = event.target.closest("[data-copy-link]");
+        if (copyLinkButton) {
+          event.preventDefault();
+          closeAllPlaylistMenus();
+          copyTextToClipboard(window.location.href, "链接已复制");
+          return;
+        }
+
+        const deletePlaylistButton = event.target.closest("[data-delete-playlist]");
+        if (deletePlaylistButton) {
+          event.preventDefault();
+          closeAllPlaylistMenus();
+          if (!window.confirm("确定删除这个歌单吗？\n\n删除后无法恢复，但不会删除歌单中的歌曲。")) return;
+          var deleteForm = document.createElement("form");
+          deleteForm.method = "POST";
+          deleteForm.action = deletePlaylistButton.dataset.deleteUrl;
+          deleteForm.style.display = "none";
+          var csrfInput = document.createElement("input");
+          csrfInput.type = "hidden";
+          csrfInput.name = "csrfmiddlewaretoken";
+          csrfInput.value = (window.EchoConfig && window.EchoConfig.csrfToken) || "";
+          deleteForm.appendChild(csrfInput);
+          document.body.appendChild(deleteForm);
+          deleteForm.submit();
           return;
         }
 

@@ -1,6 +1,6 @@
 # Echo Next Steps TODO
 
-更新时间：2026-05-25
+更新时间：2026-05-31
 
 目标：把 Echo 从“可演示的课程原型”推进到“功能闭环更完整、工程地基更稳定、可持续迭代”的状态。
 
@@ -174,7 +174,7 @@
 - 已覆盖：顶部搜索框提交到 `/search/` 独立搜索页，不再制造 `/tracks/?q=` 的“假搜索”入口。
 - 已覆盖：`lyrics/views.py` 独立歌词上传读取 `source_file` 后执行 `source_file.seek(0)`。
 - 已覆盖：`TrackComment.parent related_name="replies"` 与 `TrackComment.replies` property 命名冲突已处理，回复集合改为 `child_comments`。
-- 待处理：`base.html` 和 `static/js/echo-shell.js` 继续变大，歌词编辑器逻辑在音频上传页和歌词上传页重复，建议抽成共享 JS 模块或小组件。
+- 已处理（2026-05-31）：`static/js/echo-shell.js` 已完成基础模块化拆分；音频上传页和歌词上传页的重复歌词编辑器逻辑已抽成 `static/js/lyrics-editor.js`。
 
 ### 2026-05-18 项目审查跟进
 
@@ -240,30 +240,24 @@
 - 与 `echo-shell.js` 拆分同步推进：布局逻辑（`updateShellLayout` / `applySidebar`）抽入独立模块后，响应式断点调整只需改一个文件
 
 2. `echo-shell.js` 模块化拆分
-- 当前状态：约 1950 行单一 IIFE，混入播放器核心、队列、歌词同步、搜索建议、右键菜单、布局计算、主题、持久化等全部逻辑
-- 拆分方案：EventBus + 按数据流层次拆为 10 到 11 个模块
-  - `event-bus.js`：解耦通道
-  - `persist.js`：localStorage / cookie 读写
-  - `utils.js`：`formatTime`、`normalizeTrack` 等纯函数
-  - `player-core.js`：Audio 管理、`playTrack`、进度 / seek
-  - `queue.js`：`playQueue` 状态、shuffle、`renderPlayQueue`
-  - `lyrics.js`：歌词高亮同步、封面取色
-  - `context-panel.js`：上下文视图栏
-  - `search-suggest.js`：搜索建议防抖 / 渲染
-  - `track-context-menu.js`：右键菜单
-  - `shell-layout.js`：`updateShellLayout`、`applySidebar`
-  - `theme.js`：`applyTheme`
-  - `echo-shell.js`：收缩为 DOM 引用 + 事件绑定 + 启动序列
-- 迁移策略：叶子到根，每步跑测试，不改行为只改边界
-- 注意：与 GUI 响应式落地协同推进，避免拆分完又要大改
+- 状态：基础拆分已完成（2026-05-31）
+- 已完成：`echo-shell.js` 从 2601 行收缩到约 2013 行，保留播放器核心、队列、上下文交互和事件编排。
+- 已拆模块：
+  - `echo-shell-utils.js`：纯函数
+  - `echo-shell-persist.js`：localStorage / cookie 读写
+  - `echo-shell-layout.js`：布局、侧栏、菜单和 tooltip
+  - `echo-shell-search.js`：搜索建议防抖、请求和渲染
+  - `echo-shell-navigation.js`：主内容区局部导航、资源刷新和 dirty form 保护
+  - `echo-shell-lyrics-theme.js`：歌词面板封面取色、缓存和主题变量
+- 后续可选深拆：播放器核心、队列、右键菜单和上下文栏可继续独立，但不再阻塞当前验收。
 
 3. 统一歌词上传 / 校对体验
-- 状态：基础体验完成（2026-05-25）
+- 状态：基础体验和共享模块已完成（2026-05-31）
 - 已完成：独立歌词上传页与音频上传页都支持点击选择和拖拽导入
 - 已完成：避免 `label for=file` 触发导致的文件选择白屏问题
 - 已完成：语言选择改为下拉框，不再要求用户手输内部语言代码
 - 已有：LRC / TXT 导入后的分列编辑能力
-- 待继续打磨：两处歌词编辑器 JS 抽成共享模块
+- 已完成：两处歌词编辑器 JS 抽成 `static/js/lyrics-editor.js`
 
 4. 歌词高亮优化
 - 二分查找当前歌词行
@@ -296,12 +290,11 @@
 
 ## 当前建议执行顺序
 
-1. `echo-shell.js` 模块化拆分，优先拆播放器队列、主内容导航、搜索建议、右键菜单
-2. 抽离歌词编辑器共享 JS
-3. 共享合集 / 协作歌单
-4. 自己上传内容管理和管理员后台
-5. 新 GUI 响应式规范继续落地
-6. 歌词高亮体验优化、音频元数据解析增强、举报与审核流
+1. 共享合集 / 协作歌单
+2. 自己上传内容管理和管理员后台
+3. 新 GUI 响应式规范继续落地
+4. 播放器队列、右键菜单和上下文栏按需继续深拆
+5. 歌词高亮体验优化、音频元数据解析增强、举报与审核流
 
 ## 最近一次验证
 

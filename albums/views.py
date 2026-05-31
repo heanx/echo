@@ -262,9 +262,16 @@ def playlist_toggle_favorite(request, username, pk):
     favorite, created = PlaylistFavorite.objects.get_or_create(user=request.user, playlist=playlist)
     if created:
         Playlist.objects.filter(pk=playlist.pk).update(favorite_count=F("favorite_count") + 1)
-        messages.success(request, "已收藏歌单。")
     else:
         favorite.delete()
         Playlist.objects.filter(pk=playlist.pk, favorite_count__gt=0).update(favorite_count=F("favorite_count") - 1)
-        messages.success(request, "已取消收藏。")
+
+    if request.headers.get("HX-Request"):
+        playlist.refresh_from_db()
+        return render(request, "albums/playlist_favorite_button.html", {
+            "playlist": playlist,
+            "is_favorited": created,
+        })
+
+    messages.success(request, "已收藏歌单。" if created else "已取消收藏。")
     return _redirect_playlist_detail(playlist)

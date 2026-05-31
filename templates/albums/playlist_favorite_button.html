@@ -1,0 +1,24 @@
+{% if user.is_authenticated %}
+  <button type="button"
+          class="playlist-header-favorite"
+          hx-post="{% url 'user_playlist_favorite' playlist.creator.username playlist.pk %}"
+          hx-swap="outerHTML"
+          hx-target="this"
+          hx-indicator="#playlist-fav-spinner"
+          aria-label="{% if is_favorited %}取消收藏{% else %}收藏歌单{% endif %}"
+          title="{% if is_favorited %}取消收藏{% else %}收藏歌单{% endif %}">
+    {% if is_favorited %}
+      <svg viewBox="0 0 24 24" class="h-5 w-5" fill="#f43f5e"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+      <span>已收藏{% if playlist.favorite_count %} {{ playlist.favorite_count }}{% endif %}</span>
+    {% else %}
+      <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+      <span>收藏{% if playlist.favorite_count %} {{ playlist.favorite_count }}{% endif %}</span>
+    {% endif %}
+  </button>
+  <span id="playlist-fav-spinner" class="htmx-indicator" style="display:none;">...</span>
+{% else %}
+  <a href="{% url 'login' %}" class="playlist-header-favorite" title="收藏歌单" aria-label="收藏歌单">
+    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+    <span>收藏{% if playlist.favorite_count %} {{ playlist.favorite_count }}{% endif %}</span>
+  </a>
+{% endif %}
